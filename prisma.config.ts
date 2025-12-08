@@ -1,8 +1,6 @@
-export default {
-  datasources: {
-    db: {
-      provider: 'postgresql',
-      url: process.env.DATABASE_URL,
-    },
-  },
-};
+import { defineConfig } from "@prisma/config";
+
+export default defineConfig({
+  earlyAccess: true,
+  schema: "./prisma/schema.prisma",
+});
