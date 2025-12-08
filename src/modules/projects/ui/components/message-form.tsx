@@ -119,19 +119,20 @@ export const MessageForm = ({ projectId }: Props) => {
             </kbd>
             &nbsp;to submit
           </div>
-          <Button
-            disabled={isButtonDisabled}
-            className={cn(
-              "size-8 rounded-full",
-              isButtonDisabled && "bg-muted-foreground border"
-            )}
-          >
-            {isPending ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <ArrowUpIcon />
-            )}
-          </Button>
+        <Button
+  disabled={isButtonDisabled}
+  className={cn(
+    "size-8 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-[0_0_10px_rgba(56,189,248,0.6)]",
+    isButtonDisabled && "bg-muted-foreground border shadow-none"
+  )}
+>
+  {isPending ? (
+    <Loader2Icon className="size-4 animate-spin text-white" />
+  ) : (
+    <ArrowUpIcon className="text-white" />
+  )}
+</Button>
+
         </div>
       </form>
     </Form>

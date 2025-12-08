@@ -28,20 +28,10 @@ export function DiagramViewer({ diagram, title }: DiagramViewerProps) {
 
   useEffect(() => {
     if (diagramRef.current && diagram) {
-      // Suppress all console output during Mermaid rendering
-      const originalError = console.error;
-      const originalWarn = console.warn;
-      const originalLog = console.log;
-      
-      console.error = () => {};
-      console.warn = () => {};
-      console.log = () => {};
-
       mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
         securityLevel: 'loose',
-        logLevel: 'fatal',
       });
 
       const renderDiagram = async () => {
@@ -53,15 +43,10 @@ export function DiagramViewer({ diagram, title }: DiagramViewerProps) {
             setFullscreenDiagramSvg(svg);
           }
         } catch (error) {
-          // Silently fail - show unavailable message without console errors
+          console.error('Error rendering diagram:', error);
           if (diagramRef.current) {
-            diagramRef.current.innerHTML = '<p class="text-muted-foreground text-sm">Diagram unavailable</p>';
+            diagramRef.current.innerHTML = '<p class="text-red-500">Failed to render diagram</p>';
           }
-        } finally {
-          // Restore console functions
-          console.error = originalError;
-          console.warn = originalWarn;
-          console.log = originalLog;
         }
       };
 
