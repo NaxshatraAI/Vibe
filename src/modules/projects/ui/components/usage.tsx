@@ -40,11 +40,17 @@ export const Usage = ({ points, msBeforNext }: Props) => {
           </p>
         </div>
         {!hasProAccess && (
-        <Button asChild size="sm" variant="tertiary" className="ml-auto">
-          <Link href="/pricing">
-            <CrownIcon /> Upgrade
-          </Link>
-        </Button>
+        <Button
+  asChild
+  size="sm"
+  variant="tertiary"
+  className="ml-auto bg-sky-500 text-white hover:bg-sky-600"
+>
+  <Link href="/pricing">
+    <CrownIcon className="mr-1" /> Upgrade
+  </Link>
+</Button>
+
         )}
       </div>
     </div>

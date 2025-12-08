@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertTriangle, FileSearch } from 'lucide-react';
 import { ReviewOverview } from './review-overview';
 import { IssuesList } from './issues-list';
+import { DiagramViewer } from './diagram-viewer';
 import { toast } from 'sonner';
 
 interface ReviewTabProps {
@@ -113,6 +114,7 @@ export function ReviewTab({ projectId }: ReviewTabProps) {
               onClick={handleGenerateReview}
               disabled={isGenerating || review?.status === 'IN_PROGRESS'}
               size="sm"
+                 className="ml-auto bg-sky-500 text-white hover:bg-sky-600"
             >
               {isGenerating || review?.status === 'IN_PROGRESS' ? (
                 <>
@@ -121,7 +123,7 @@ export function ReviewTab({ projectId }: ReviewTabProps) {
                 </>
               ) : (
                 <>
-                  <FileSearch className="w-4 h-4 mr-2" />
+                  <FileSearch className="w-4 h-4 mr-2"  />
                   {review ? 'New Review' : 'Start Review'}
                 </>
               )}
@@ -194,7 +196,8 @@ export function ReviewTab({ projectId }: ReviewTabProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-3">
-              <Button onClick={handleGenerateReview} size="lg">
+              <Button onClick={handleGenerateReview} size="lg"   className="ml-auto bg-sky-500 text-white hover:bg-sky-600"
+              >
                 <FileSearch className="w-4 h-4 mr-2" />
                 Start Code Review
               </Button>
@@ -224,7 +227,22 @@ export function ReviewTab({ projectId }: ReviewTabProps) {
             )}
 
             {/* Diagrams */}
-            {/* Diagrams removed - showing summary and issues instead */}
+            {(review.architectureDiagram || review.complexityGraph) && (
+              <div className="grid gap-6 grid-cols-1">
+                {review.architectureDiagram && (
+                  <DiagramViewer
+                    diagram={review.architectureDiagram}
+                    title="Architecture Diagram"
+                  />
+                )}
+                {review.complexityGraph && (
+                  <DiagramViewer
+                    diagram={review.complexityGraph}
+                    title="Complexity Analysis"
+                  />
+                )}
+              </div>
+            )}
 
             {/* Issues List */}
             {review.issues && review.issues.length > 0 && (

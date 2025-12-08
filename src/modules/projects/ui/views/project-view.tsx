@@ -11,7 +11,14 @@ import { Fragment } from "@/generated/prisma";
 import { ProjectHeader } from "../components/project-header";
 import { FragmentWeb } from "../components/fragment-web";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CodeIcon, CrownIcon, EyeIcon, DownloadIcon, GithubIcon, FileSearchIcon } from "lucide-react";
+import {
+  CodeIcon,
+  CrownIcon,
+  EyeIcon,
+  DownloadIcon,
+  GithubIcon,
+  FileSearchIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileExplorer } from "@/components/file-explorer";
@@ -32,16 +39,16 @@ export const ProjectView = ({ projectId }: Props) => {
   const { has } = useAuth();
   const hasProAccess = has?.({ plan: "pro" });
   const [activeFragment, setActiveFragment] = useState<Fragment | null>(null);
-  const [tabState, setTabState] = useState<"preview" | "code" | "review">("preview");
+  const [tabState, setTabState] = useState<"preview" | "code" | "review">(
+    "preview"
+  );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPushingToGitHub, setIsPushingToGitHub] = useState(false);
-  
+
   const trpc = useTRPC();
   const { data: project } = useSuspenseQuery(
     trpc.projects.getOne.queryOptions({ id: projectId })
   );
-
-  // Add Clerk Auth mutation removed; flow currently disabled.
 
   const handleDownload = async () => {
     if (!activeFragment?.files) {
@@ -54,7 +61,7 @@ export const ProjectView = ({ projectId }: Props) => {
       await downloadProjectAsZip(
         activeFragment.files as Record<string, string>,
         project.name || "nextjs-project",
-        false // Regular download without Clerk
+        false
       );
       toast.success("Project downloaded successfully!");
     } catch (error) {
@@ -86,31 +93,7 @@ export const ProjectView = ({ projectId }: Props) => {
 
       if (!response.ok) {
         const errorMsg = data.detail || data.error || "Failed to push to GitHub";
-        console.error("GitHub push error:", {
-          error: data.error,
-          detail: data.detail,
-          repoName: data.repoName,
-          owner: data.owner
-        });
-        // Special case: token missing in server
-        if (response.status === 400 && (data.error?.includes("token") || data.detail?.includes("token"))) {
-          toast.error("GitHub token not found", {
-            description: "Please connect GitHub once to store your token. Go to project creation/setup and provide your token.",
-            duration: 8000,
-          });
-          return;
-        }
-        
-        // Show multiline errors properly
-        if (errorMsg.includes('\n')) {
-          const lines = errorMsg.split('\n');
-          toast.error(lines[0], {
-            description: lines.slice(1).join('\n'),
-            duration: 10000
-          });
-        } else {
-          toast.error(errorMsg);
-        }
+        toast.error(errorMsg);
         return;
       }
 
@@ -123,23 +106,31 @@ export const ProjectView = ({ projectId }: Props) => {
     }
   };
 
-  // Add Clerk Auth flow is currently disabled in UI; handler removed to satisfy lint.
-
   return (
-    <div className="h-screen">
+    <div
+      className="
+        h-screen
+        bg-black/60 backdrop-blur-xl
+        border border-white/10
+        shadow-[0_0_25px_rgba(0,255,255,0.18),0_0_40px_rgba(168,85,247,0.18)]
+      "
+    >
       <ResizablePanelGroup direction="horizontal">
+
+        {/* ✅ LEFT PANEL */}
         <ResizablePanel
           defaultSize={35}
           minSize={20}
-          className="flex flex-col m-0"
+          className="flex flex-col m-0 border-r border-white/10 bg-black/50 backdrop-blur-xl"
         >
-          <ErrorBoundary fallback={<p>Project heater error</p>}>
-            <Suspense fallback={<p>Loading projct...</p>}>
+          <ErrorBoundary fallback={<p>Project header error</p>}>
+            <Suspense fallback={<p className="text-white/50 p-4">Loading project...</p>}>
               <ProjectHeader projectId={projectId} />
             </Suspense>
           </ErrorBoundary>
+
           <ErrorBoundary fallback={<p>Messages error</p>}>
-            <Suspense fallback={<p>Loading Message</p>}>
+            <Suspense fallback={<p className="text-white/50 p-4">Loading messages...</p>}>
               <MessagesContainer
                 projectId={projectId}
                 activeFragment={activeFragment}
@@ -148,73 +139,89 @@ export const ProjectView = ({ projectId }: Props) => {
             </Suspense>
           </ErrorBoundary>
         </ResizablePanel>
-        <ResizableHandle className="hover:bg-primary transition-colors" />
-        <ResizablePanel defaultSize={65} minSize={50}>
+
+        <ResizableHandle className="bg-white/5 hover:bg-cyan-400/30 transition-colors" />
+
+        {/* ✅ RIGHT PANEL */}
+        <ResizablePanel defaultSize={65} minSize={50} className="bg-black/40 backdrop-blur-xl">
+
           <Tabs
             className="h-full gap-y-0"
             defaultValue="preview"
             value={tabState}
-            onValueChange={(value) => setTabState(value as "preview" | "code" | "review")}
+            onValueChange={(value) =>
+              setTabState(value as "preview" | "code" | "review")
+            }
           >
-            <div className="w-full flex items-center p-2 border-b gap-x-2">
-              <TabsList className="h-8 p-0 border rounded-md">
-                <TabsTrigger value="preview" className="rounded-md">
-                  <EyeIcon /> <span>Demo</span>
+            {/* ✅ TOP BAR */}
+            <div className="w-full flex items-center p-3 border-b border-white/10 gap-x-2 bg-black/60 backdrop-blur-xl">
+
+              <TabsList className="h-9 p-1 border border-white/10 rounded-lg bg-black/50">
+                <TabsTrigger value="preview" className="rounded-md flex items-center gap-1">
+                  <EyeIcon className="w-4 h-4" /> Demo
                 </TabsTrigger>
-                <TabsTrigger value="code" className="rounded-md">
-                  <CodeIcon /> <span>Code</span>
+                <TabsTrigger value="code" className="rounded-md flex items-center gap-1">
+                  <CodeIcon className="w-4 h-4" /> Code
                 </TabsTrigger>
-                <TabsTrigger value="review" className="rounded-md">
-                  <FileSearchIcon /> <span>Review</span>
+                <TabsTrigger value="review" className="rounded-md flex items-center gap-1">
+                  <FileSearchIcon className="w-4 h-4" /> Review
                 </TabsTrigger>
               </TabsList>
+
               <div className="ml-auto flex items-center gap-x-2">
                 {activeFragment?.files && (
                   <>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
-                      className="bg-white hover:bg-gray-50"
+                      className="bg-black/40 border-white/10 text-white hover:bg-black/70"
                       onClick={handlePushToGitHub}
                       disabled={isPushingToGitHub || !project.githubEnabled}
                     >
                       <GithubIcon className="w-4 h-4" />
-                      <span>{isPushingToGitHub ? "Pushing..." : "GitHub"}</span>
+                      <span>
+                        {isPushingToGitHub ? "Pushing..." : "GitHub"}
+                      </span>
                     </Button>
-                    <Button 
-                      size="sm" 
+
+                    <Button
+                      size="sm"
                       variant="outline"
+                      className="bg-black/40 border-white/10 text-white hover:bg-black/70"
                       onClick={handleDownload}
                       disabled={isDownloading}
                     >
-                      <DownloadIcon className={isDownloading ? "animate-spin" : ""} />
+                      <DownloadIcon
+                        className={isDownloading ? "animate-spin" : ""}
+                      />
                       {isDownloading ? "Downloading..." : "Download"}
                     </Button>
-                    {/* <Button 
-                      size="sm" 
-                      variant="default"
-                      onClick={handleAddClerkAuth}
-                      disabled={isDownloading || isAddingClerkAuth}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    >
-                      <ShieldCheckIcon className={isAddingClerkAuth ? "animate-spin" : ""} />
-                      {isAddingClerkAuth ? "Adding Auth..." : "Add Clerk Auth"}
-                    </Button> */}
                   </>
                 )}
+
                 {!hasProAccess && (
-                  <Button asChild size="sm" variant="default">
-                    <Link href="/pricing">
-                      <CrownIcon /> Upgrade
-                    </Link>
-                  </Button>
+                  <Button
+                  asChild
+                    size="sm"
+                    variant="default"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+>
+                        <Link href="/pricing" className="flex items-center gap-1">
+                          <CrownIcon className="w-4 h-4" /> Upgrade
+                        </Link>
+                      </Button>
+
                 )}
+
                 <UserControl />
               </div>
             </div>
+
+            {/* ✅ TAB CONTENTS */}
             <TabsContent value="preview">
               {!!activeFragment && <FragmentWeb data={activeFragment} />}
             </TabsContent>
+
             <TabsContent value="code" className="min-h-0">
               {!!activeFragment?.files && (
                 <FileExplorer
@@ -222,6 +229,7 @@ export const ProjectView = ({ projectId }: Props) => {
                 />
               )}
             </TabsContent>
+
             <TabsContent value="review" className="h-full overflow-hidden">
               <ReviewTab projectId={projectId} />
             </TabsContent>

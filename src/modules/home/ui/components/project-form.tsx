@@ -5,12 +5,8 @@ import { z } from "zod";
 import { useState } from "react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
-import TextareaAutosize from "react-textarea-autosize";
-import { ArrowUpIcon, Loader2Icon, GithubIcon } from "lucide-react";
-import {
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { ArrowUpIcon, Loader2Icon, GithubIcon, Paperclip } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpic/client";
 import { Button } from "@/components/ui/button";
@@ -28,12 +24,16 @@ import { useRouter } from "next/navigation";
 import { PROJECT_TEMPLATES } from "../../constants";
 import { useClerk } from "@clerk/nextjs";
 
+/* ---------------------------- SCHEMA ---------------------------- */
+
 const formSchema = z.object({
   value: z
     .string()
     .min(1, { message: "Message is required" })
     .max(1000, { message: "Message must be less than 1000 characters" }),
 });
+
+/* ---------------------------- MAIN COMPONENT ---------------------------- */
 
 export const ProjectForm = () => {
   const router = useRouter();
@@ -49,35 +49,28 @@ export const ProjectForm = () => {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      value: "",
-    },
+    defaultValues: { value: "" },
   });
+
+  /* ---------------------------- MUTATION ---------------------------- */
 
   const createProject = useMutation(
     trpc.projects.create.mutationOptions({
       onSuccess: (data) => {
         queryClient.invalidateQueries(trpc.projects.getMany.queryOptions());
-        queryClient.invalidateQueries(
-          trpc.usage.status.queryOptions()
-        )
-        // Show GitHub setup dialog instead of immediate redirect
+        queryClient.invalidateQueries(trpc.usage.status.queryOptions());
         setCreatedProjectId(data.id);
         setShowGitHubDialog(true);
       },
       onError: (error) => {
-        toast.error(
-          error.message || "An error occurred while creating the message"
-        );
-        if (error?.data?.code === "UNAUTHORIZED") {
-          clerk.openSignIn();
-        }
-        if (error?.data?.code === "TOO_MANY_REQUESTS") {
-          router.push("/pricing");
-        }
+        toast.error(error.message || "An error occurred");
+        if (error?.data?.code === "UNAUTHORIZED") clerk.openSignIn();
+        if (error?.data?.code === "TOO_MANY_REQUESTS") router.push("/pricing");
       },
     })
   );
+
+  /* ---------------------------- GITHUB SETUP ---------------------------- */
 
   const setupGitHub = async () => {
     if (!createdProjectId || !githubRepoName || !githubToken) {
@@ -100,23 +93,10 @@ export const ProjectForm = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMsg = data.detail || data.error || "Failed to set up GitHub repository";
-        console.error("GitHub setup error:", data);
-        
-        // Show multiline errors with better formatting
-        if (errorMsg.includes('\n')) {
-          const lines = errorMsg.split('\n');
-          toast.error(lines[0], {
-            description: lines.slice(1).join('\n'),
-            duration: 10000
-          });
-        } else {
-          toast.error(errorMsg);
-        }
+        toast.error(data.error || "Failed to set up GitHub repository");
         return;
       }
 
-      console.log("GitHub repository created:", data);
       toast.success(`GitHub repo created: ${data.repoName}`);
       setShowGitHubDialog(false);
       router.push(`/projects/${createdProjectId}`);
@@ -126,6 +106,8 @@ export const ProjectForm = () => {
       setIsSettingUpGitHub(false);
     }
   };
+
+  /* ---------------------------- SUBMIT ---------------------------- */
 
   const onSubmit = async (value: z.infer<typeof formSchema>) => {
     await createProject.mutateAsync({
@@ -141,83 +123,113 @@ export const ProjectForm = () => {
     });
   };
 
-  const [isFocused, setIsFocused] = useState(false);
   const isPending = createProject.isPending;
   const isButtonDisabled = isPending || !form.formState.isValid;
 
+  /* ============================= ✅ UI ============================= */
+
   return (
     <Form {...form}>
-      <section className="space-y-6">
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className={cn(
-            "relative border p-4 rounded-xl bg-sidebar transition-all",
-            isFocused && "shadow-xs"
-          )}
-        >
-          <FormField
-            control={form.control}
-            name="value"
-            render={({ field }) => (
-              <TextareaAutosize
-                {...field}
-                disabled={isPending}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                minRows={2}
-                maxRows={8}
-                className="pt-4 resize-none border-none w-full outline-none bg-transparent"
-                placeholder="What would like to build"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    form.handleSubmit(onSubmit)(e);
-                  }
-                }}
-              />
-            )}
-          />
-          <div className="flex gap-x-2 items-end justify-between pt-2">
-            <div className="text-[10px] text-muted-foreground font-mono">
-              <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono font-medium text-muted-foreground">
-                <span>&#8984;</span>Enter
-              </kbd>
-              &nbsp;to submit
-            </div>
-            <Button
-              disabled={isButtonDisabled}
-              className={cn(
-                "size-8 rounded-full",
-                isButtonDisabled && "bg-muted-foreground border"
-              )}
-            >
-              {isPending ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <ArrowUpIcon />
-              )}
-            </Button>
-          </div>
-        </form>
-        <div className="flex-wrap justify-center gap-2 hidden md:flex max-w-3xl">
-          {PROJECT_TEMPLATES.map((template) => (
-            <Button
-              key={template.title}
-              variant="outline"
-              size="sm"
-              className="bg-white dark:bg-sidebar"
-              onClick={() => onSelect(template.prompt)}
-            >
-              {template.emoji} {template.title}
-            </Button>
-          ))}
-        </div>
-      </section>
+      {/* ✅ REAL FORM ADDED — THIS FIXES SUBMISSION */}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 space-y-10"
+      >
+        <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-teal-400 to-violet-400 bg-clip-text text-transparent">
+          What can I help you build?
+        </h2>
 
-      {/* GitHub Setup Dialog - Required */}
+        <div className="w-full">
+          {/* ✅ GLOW CHAT CONTAINER */}
+          <div
+            className="
+              relative rounded-2xl bg-black/70 backdrop-blur-2xl
+              border border-white/15
+              shadow-[0_0_15px_rgba(0,255,255,0.25),0_0_25px_rgba(168,85,247,0.25)]
+              transition-all duration-300
+            "
+          >
+            <FormField
+              control={form.control}
+              name="value"
+              render={({ field }) => (
+                <textarea
+                  {...field}
+                  disabled={isPending}
+                  placeholder="Ask Trikon to build something..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      form.handleSubmit(onSubmit)(e);
+                    }
+                  }}
+                  className="
+                    w-full px-5 py-4 resize-none bg-transparent border-none
+                    text-white text-[15px] leading-relaxed focus:outline-none
+                    placeholder:text-white/35 min-h-[64px]
+                  "
+                />
+              )}
+            />
+
+            <div className="flex items-center justify-between p-3">
+              <button
+                type="button"
+                className="p-2 hover:bg-white/[0.05] rounded-lg"
+              >
+                <Paperclip className="w-4 h-4 text-white/60" />
+              </button>
+
+              {/* ✅ SUBMIT BUTTON FIXED */}
+             <Button
+  type="submit"
+  disabled={isButtonDisabled}
+  className={cn(
+    "px-3 py-2 rounded-lg transition-all duration-200 border flex items-center gap-1 shadow-lg",
+    !isButtonDisabled
+      ? "bg-gradient-to-r from-teal-500 to-violet-500 text-white border-transparent hover:shadow-[0_0_12px_rgba(0,255,255,0.4)] active:scale-[0.97]"
+      : "bg-white/5 text-white/30 border-white/10 opacity-50 cursor-not-allowed shadow-none"
+  )}
+>
+  {isPending ? (
+    <Loader2Icon className="animate-spin w-4 h-4" />
+  ) : (
+    <ArrowUpIcon className="w-4 h-4" />
+  )}
+</Button>
+
+            </div>
+          </div>
+
+          {/* ✅ TEMPLATE BUTTONS */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+            {PROJECT_TEMPLATES.map((template) => (
+              <button
+                key={template.title}
+                type="button"
+                onClick={() => onSelect(template.prompt)}
+                className="
+                  flex items-center gap-2 px-4 py-2 rounded-full
+                  bg-black/60 text-white/60
+                  border border-white/15
+                  shadow-[0_0_8px_rgba(0,255,255,0.25),0_0_12px_rgba(168,85,247,0.28)]
+                  hover:text-white hover:bg-black/80 hover:scale-[1.05]
+                  transition-all duration-200
+                  text-xs
+                "
+              >
+                <span>{template.emoji}</span>
+                {template.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      </form>
+
+      {/* ✅ GITHUB DIALOG — UNCHANGED */}
       <Dialog open={showGitHubDialog} onOpenChange={() => {}}>
-        <DialogContent 
-          className="sm:max-w-md" 
+        <DialogContent
+          className="sm:max-w-md"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
@@ -230,7 +242,7 @@ export const ProjectForm = () => {
               Set up a GitHub repository for your project. This is required to save and manage your code.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Repository Name</label>
@@ -240,32 +252,17 @@ export const ProjectForm = () => {
                 onChange={(e) => setGithubRepoName(e.target.value)}
                 disabled={isSettingUpGitHub}
               />
-              <p className="text-xs text-muted-foreground">
-                Use letters, numbers, hyphens (-), and underscores (_) only. No spaces or special characters like @.
-              </p>
             </div>
-            
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">GitHub Personal Access Token</label>
+              <label className="text-sm font-medium">GitHub Token</label>
               <Input
                 type="password"
-                placeholder="ghp_xxxxxxxxxxxx"
+                placeholder="ghp_xxxxxxxxx"
                 value={githubToken}
                 onChange={(e) => setGithubToken(e.target.value)}
                 disabled={isSettingUpGitHub}
               />
-              <p className="text-xs text-muted-foreground">
-                Need a token? Create one at{" "}
-                <a
-                  href="https://github.com/settings/tokens/new"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  github.com/settings/tokens
-                </a>{" "}
-                with <code>repo</code> scope.
-              </p>
             </div>
           </div>
 
@@ -275,14 +272,7 @@ export const ProjectForm = () => {
               disabled={!githubRepoName || !githubToken || isSettingUpGitHub}
               className="w-full"
             >
-              {isSettingUpGitHub ? (
-                <>
-                  <Loader2Icon className="animate-spin mr-2" />
-                  Setting up...
-                </>
-              ) : (
-                "Connect GitHub"
-              )}
+              {isSettingUpGitHub ? "Setting up..." : "Connect GitHub"}
             </Button>
           </DialogFooter>
         </DialogContent>

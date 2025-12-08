@@ -175,27 +175,6 @@ Provide comprehensive, actionable feedback. Return ONLY valid JSON, no markdown 
     // Parse JSON response
     const reviewData = JSON.parse(responseText);
 
-    // Sanitize Mermaid diagrams - remove problematic characters
-    const sanitizeMermaidDiagram = (diagram: string): string => {
-      if (!diagram) return '';
-      // Remove or escape special characters that cause parsing issues
-      return diagram
-        .replace(/\[/g, '') // Remove opening brackets
-        .replace(/\]/g, '') // Remove closing brackets
-        .replace(/\(/g, '') // Remove opening parentheses
-        .replace(/\)/g, '') // Remove closing parentheses
-        .replace(/\//g, '_') // Replace forward slashes with underscores
-        .replace(/:/g, '') // Remove colons
-        .replace(/\./g, '_'); // Replace dots with underscores
-    };
-
-    if (reviewData.architectureDiagram) {
-      reviewData.architectureDiagram = sanitizeMermaidDiagram(reviewData.architectureDiagram);
-    }
-    if (reviewData.complexityGraph) {
-      reviewData.complexityGraph = sanitizeMermaidDiagram(reviewData.complexityGraph);
-    }
-
     // Count issues by severity
     const issuesBySeverity = {
       CRITICAL: 0,
