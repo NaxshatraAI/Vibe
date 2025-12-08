@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Github, Twitter, Linkedin } from "lucide-react";
 
 
