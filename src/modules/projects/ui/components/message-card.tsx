@@ -3,6 +3,9 @@ import { Fragment, MessageType, MessageRole } from "@/generated/prisma";
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, Code2Icon } from "lucide-react";
 import Image from "next/image";
+import { SupabaseActionCard } from "./supabase-action-card";
+import { shouldShowSupabaseCard } from "@/lib/detect-database-need";
+import { DatabaseResultCard } from "./database-result-card";
 
 interface UserMessageProps {
   content: string;
@@ -59,6 +62,19 @@ interface AssistantMessageProps {
   type: MessageType;
 }
 
+// Detect if message content is a database query result
+const isDatabaseResult = (content: string): boolean => {
+  return (
+    content.startsWith("✅") ||
+    content.startsWith("❌") ||
+    (content.includes("retrieved") && content.includes("record")) ||
+    (content.includes("inserted") && content.includes("into")) ||
+    (content.includes("updated") && content.includes("in")) ||
+    (content.includes("deleted") && content.includes("from")) ||
+    content.includes("|") // Table format
+  );
+};
+
 const AssistantMessage = ({
   content,
   fragment,
@@ -66,6 +82,9 @@ const AssistantMessage = ({
   onFragmentClick,
   type,
 }: AssistantMessageProps) => {
+  const showSupabaseCard = type === "RESULT" && shouldShowSupabaseCard(content);
+  const isDbResult = isDatabaseResult(content);
+
   return (
     <div
       className={cn(
@@ -94,13 +113,23 @@ const AssistantMessage = ({
         </span>
       </div>
       <div className="pl-8.5 flex flex-col gap-y-4">
-        <span>{content}</span>
+        {isDbResult ? (
+          <DatabaseResultCard
+            content={content}
+            isError={content.startsWith("❌")}
+          />
+        ) : (
+          <span>{content}</span>
+        )}
         {fragment && type === "RESULT" && (
           <FragmentCard
             fragment={fragment}
             isActiveFragment={isActiveFragment}
             onFragmentClick={onFragmentClick}
           />
+        )}
+        {showSupabaseCard && (
+          <SupabaseActionCard />
         )}
       </div>
     </div>

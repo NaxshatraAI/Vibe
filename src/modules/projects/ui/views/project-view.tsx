@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { useTRPC } from "@/trpic/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReviewTab } from "@/modules/reviews/ui/components/review-tab";
+import { SupabaseProjectsList } from "../components/supabase-projects-list";
 
 interface Props {
   projectId: string;
@@ -128,6 +129,12 @@ export const ProjectView = ({ projectId }: Props) => {
               <ProjectHeader projectId={projectId} />
             </Suspense>
           </ErrorBoundary>
+
+          <div className="p-3">
+            <Suspense fallback={<p className="text-white/50 p-2">Loading Supabase…</p>}>
+              <SupabaseProjectsList />
+            </Suspense>
+          </div>
 
           <ErrorBoundary fallback={<p>Messages error</p>}>
             <Suspense fallback={<p className="text-white/50 p-4">Loading messages...</p>}>

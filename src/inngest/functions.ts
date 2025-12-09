@@ -14,10 +14,25 @@ import { z } from "zod";
 import { FRAGMENT_TITLE_PROMPT, PROMPT, RESPONSE_PROMPT } from "@/prompt";
 import { prisma } from "@/lib/db";
 import { SANDBOX_TIMEOUT } from "./types";
+import { getSelectedSupabaseProject } from "@/lib/workspace-settings";
+import {
+  extractDatabaseQueries,
+  executeDatabaseQuery,
+  formatQueryResult,
+  hasDatabaseQueries,
+} from "./db-query-handler";
 
 interface AgentState {
   summary: string;
   files: { [path: string]: string };
+  workspaceContext?: {
+    supabaseProjectId?: string | null;
+    userId?: string | null;
+  };
+  databaseResults?: Array<{
+    query: Record<string, unknown>;
+    result: string;
+  }>;
 }
 
 export const codeAgentFunction = inngest.createFunction(
@@ -28,6 +43,15 @@ export const codeAgentFunction = inngest.createFunction(
       const sandbox = await Sandbox.create("manas-vibe-nextjs-test-2");
       await sandbox.setTimeout(SANDBOX_TIMEOUT); // 20 minutes
       return sandbox.sandboxId;
+    });
+
+    // Get workspace context including selected Supabase project
+    const workspaceContext = await step.run("get-workspace-context", async () => {
+      const { projectId, userId } = await getSelectedSupabaseProject();
+      return {
+        supabaseProjectId: projectId,
+        userId,
+      };
     });
 
     const previousMessages = await step.run(
@@ -59,6 +83,7 @@ export const codeAgentFunction = inngest.createFunction(
       {
         summary: "",
         files: {},
+        workspaceContext,
       },
       { messages: previousMessages }
     );
@@ -175,6 +200,47 @@ export const codeAgentFunction = inngest.createFunction(
             if (lastAssistantMessageText.includes("<task_summary>")) {
               network.state.data.summary = lastAssistantMessageText;
             }
+
+            // Check if response contains database queries
+            if (
+              hasDatabaseQueries(lastAssistantMessageText) &&
+              network.state.data.workspaceContext?.supabaseProjectId
+            ) {
+              // Extract database queries from the AI response
+              const queries = extractDatabaseQueries(lastAssistantMessageText);
+
+              if (queries.length > 0) {
+                // Get the sandbox URL for executing queries
+                const sandbox = await getSandbox(sandboxId);
+                const appUrl = `https://${sandbox.getHost(3000)}`;
+
+                // Initialize database results array if not exists
+                if (!network.state.data.databaseResults) {
+                  network.state.data.databaseResults = [];
+                }
+
+                // Execute each detected database query
+                for (const query of queries) {
+                  try {
+                    const queryResult = await executeDatabaseQuery(
+                      query.queryBody,
+                      appUrl
+                    );
+                    const formattedResult = formatQueryResult(queryResult);
+
+                    network.state.data.databaseResults.push({
+                      query: query.queryBody,
+                      result: formattedResult,
+                    });
+                  } catch (error) {
+                    network.state.data.databaseResults.push({
+                      query: query.queryBody,
+                      result: `❌ Error executing query: ${error instanceof Error ? error.message : String(error)}`,
+                    });
+                  }
+                }
+              }
+            }
           }
           return result;
         },
@@ -241,7 +307,7 @@ export const codeAgentFunction = inngest.createFunction(
           },
         });
       }
-      return await prisma.message.create({
+      const mainMessage = await prisma.message.create({
         data: {
           projectId: event.data.projectId,
           content: parseAgentOutput(responseOutput),
@@ -256,6 +322,22 @@ export const codeAgentFunction = inngest.createFunction(
           },
         },
       });
+
+      // Save database query results as separate messages
+      if (result.state.data.databaseResults && result.state.data.databaseResults.length > 0) {
+        for (const dbResult of result.state.data.databaseResults) {
+          await prisma.message.create({
+            data: {
+              projectId: event.data.projectId,
+              content: dbResult.result,
+              role: "ASSISTANT",
+              type: "RESULT",
+            },
+          });
+        }
+      }
+
+      return mainMessage;
     });
 
     // Auto-push to GitHub if enabled

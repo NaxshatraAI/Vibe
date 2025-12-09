@@ -1,4 +1,4 @@
-const NotFound = () => {
+export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-background px-6 text-foreground">
       <p className="text-sm font-medium text-muted-foreground">404</p>
@@ -6,6 +6,4 @@ const NotFound = () => {
       <p className="text-muted-foreground">Double-check the URL or return home.</p>
     </div>
   );
-};
-
-export default NotFound;
+}
