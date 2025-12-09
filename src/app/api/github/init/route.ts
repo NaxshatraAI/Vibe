@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { consumeCredits } from "@/lib/usage";
+import { inngest } from "@/inngest/client";
 
 /**
  * Initialize GitHub repo for a project
@@ -13,20 +15,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { projectId?: string; repoName?: string; githubToken?: string } = {};
+  let body: { projectId?: string; repoName?: string } = {};
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { projectId, repoName, githubToken } = body;
+  const { projectId, repoName } = body;
   
-  if (!projectId || !repoName || !githubToken) {
+  if (!projectId || !repoName) {
     return NextResponse.json({ 
-      error: "projectId, repoName, and githubToken required" 
+      error: "projectId and repoName required" 
     }, { status: 400 });
   }
+
+  // Get user's stored GitHub access token
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { githubAccessToken: true, githubUsername: true },
+  });
+
+  if (!user?.githubAccessToken) {
+    return NextResponse.json({ 
+      error: "GitHub not connected",
+      detail: "Please connect your GitHub account first" 
+    }, { status: 403 });
+  }
+
+  const githubToken = user.githubAccessToken;
 
   // Validate repository name - GitHub doesn't allow certain characters
   const invalidChars = /[@\s!#$%^&*()+={}\[\]|\\:;"'<>,.?/]/;
@@ -66,19 +83,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Persist token to Clerk private metadata so user doesn't need to paste again
-    try {
-      const client = await clerkClient();
-      await client.users.updateUserMetadata(userId, {
-        privateMetadata: {
-          githubToken,
-        },
-      });
-    } catch (metaErr) {
-      console.warn("[GitHub Init] Failed to save token to Clerk private metadata", metaErr);
-      // Non-fatal: continue with repo creation
-    }
-
     // Create GitHub repo using GitHub API
     const response = await fetch("https://api.github.com/user/repos", {
       method: "POST",
@@ -138,10 +142,44 @@ export async function POST(req: Request) {
       },
     });
 
+    // Fetch the first user message (prompt) for this project
+    const firstMessage = await prisma.message.findFirst({
+      where: { projectId, role: "USER" },
+      orderBy: { createdAt: "asc" },
+      select: { content: true },
+    });
+
+    if (!firstMessage) {
+      return NextResponse.json({
+        error: "No prompt found for project",
+        detail: "Cannot start workflow without an initial user prompt",
+      }, { status: 500 });
+    }
+
+    // Consume credits only after GitHub is connected to avoid waste
+    try {
+      await consumeCredits();
+    } catch (error) {
+      return NextResponse.json({
+        error: "Insufficient credits",
+        detail: "Please upgrade or wait for credits to reset before starting the build.",
+      }, { status: 429 });
+    }
+
+    // Kick off the background code-agent workflow now that GitHub is ready
+    await inngest.send({
+      name: "code-agent/run",
+      data: {
+        value: firstMessage.content,
+        projectId,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       repoUrl: repoData.html_url,
       repoName: repoName,
+      workflowStarted: true,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";

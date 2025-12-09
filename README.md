@@ -21,7 +21,8 @@
 ## 🔗 Table of Contents
 
 - [📍 Overview](#-overview)
-- [👾 Features](#-features)
+- [� GitHub OAuth Setup](#-github-oauth-setup)
+- [�👾 Features](#-features)
 - [📁 Project Structure](#-project-structure)
   - [📂 Project Index](#-project-index)
 - [🚀 Getting Started](#-getting-started)
@@ -42,7 +43,27 @@ Vibe is an open-source project solving the challenge of managing dependencies an
 
 ---
 
-## 👾 Features
+## � GitHub OAuth Setup
+
+> **New!** Vibe now uses GitHub OAuth for seamless repository creation. Users authorize once through GitHub's official OAuth flow, and repositories are created automatically without manual token input.
+
+### Quick Setup (5 minutes)
+
+See [QUICK_START.md](QUICK_START.md) for a rapid setup guide, or [GITHUB_OAUTH_SETUP.md](GITHUB_OAUTH_SETUP.md) for comprehensive instructions.
+
+**Summary:**
+1. Create a GitHub OAuth App at https://github.com/settings/developers
+2. Add credentials to `.env`:
+   ```bash
+   GITHUB_CLIENT_ID=your_client_id
+   GITHUB_CLIENT_SECRET=your_client_secret
+   ```
+3. Run `npx prisma generate`
+4. Users can now connect GitHub with one click! 🎉
+
+---
+
+## �👾 Features
 
 |      | Feature         | Summary       |
 | :--- | :---:           | :---          |

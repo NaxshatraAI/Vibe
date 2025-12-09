@@ -11,6 +11,13 @@ datasource db {
 model User {
   id       String    @id                         // Clerk user ID (e.g. "user_xyz123")
   projects Project[]                             // One-to-many: User → Projects
+  
+  // GitHub OAuth Integration
+  githubAccessToken  String?   // OAuth access token for GitHub API
+  githubRefreshToken String?   // Refresh token (if applicable)
+  githubId           String?   // GitHub user ID
+  githubUsername     String?   // GitHub username
+  githubConnectedAt  DateTime? // When user connected GitHub account
 }
 
 model Project {

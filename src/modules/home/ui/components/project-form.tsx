@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowUpIcon, Loader2Icon, GithubIcon, Paperclip } from "lucide-react";
@@ -44,8 +44,40 @@ export const ProjectForm = () => {
   const [showGitHubDialog, setShowGitHubDialog] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [githubRepoName, setGithubRepoName] = useState("");
-  const [githubToken, setGithubToken] = useState("");
   const [isSettingUpGitHub, setIsSettingUpGitHub] = useState(false);
+  const [isGitHubConnected, setIsGitHubConnected] = useState(false);
+
+  // Check if GitHub is connected on mount
+  useEffect(() => {
+    const checkGitHubConnection = async () => {
+      try {
+        const response = await fetch("/api/github/status");
+        if (response.ok) {
+          const data = await response.json();
+          setIsGitHubConnected(data.connected);
+        }
+      } catch (error) {
+        console.error("Failed to check GitHub connection:", error);
+      }
+    };
+    checkGitHubConnection();
+
+    // Check for GitHub connection success message in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("github_connected") === "true") {
+      toast.success("GitHub account connected successfully!");
+      setIsGitHubConnected(true);
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    
+    // Check for errors
+    const error = urlParams.get("error");
+    if (error) {
+      toast.error(`GitHub connection failed: ${error}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,9 +104,14 @@ export const ProjectForm = () => {
 
   /* ---------------------------- GITHUB SETUP ---------------------------- */
 
+  const connectGitHub = () => {
+    // Redirect to OAuth flow
+    window.location.href = "/api/github/auth";
+  };
+
   const setupGitHub = async () => {
-    if (!createdProjectId || !githubRepoName || !githubToken) {
-      toast.error("Please provide both repository name and GitHub token");
+    if (!createdProjectId || !githubRepoName) {
+      toast.error("Please provide a repository name");
       return;
     }
 
@@ -86,13 +123,18 @@ export const ProjectForm = () => {
         body: JSON.stringify({
           projectId: createdProjectId,
           repoName: githubRepoName,
-          githubToken,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 403 && data.error === "GitHub not connected") {
+          toast.error("Please connect your GitHub account first");
+          setShowGitHubDialog(false);
+          connectGitHub();
+          return;
+        }
         toast.error(data.error || "Failed to set up GitHub repository");
         return;
       }
@@ -226,7 +268,7 @@ export const ProjectForm = () => {
         </div>
       </form>
 
-      {/* ✅ GITHUB DIALOG — UNCHANGED */}
+      {/* ✅ GITHUB DIALOG */}
       <Dialog open={showGitHubDialog} onOpenChange={() => {}}>
         <DialogContent
           className="sm:max-w-md"
@@ -244,6 +286,22 @@ export const ProjectForm = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {!isGitHubConnected && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-3">
+                  You need to connect your GitHub account first
+                </p>
+                <Button
+                  onClick={connectGitHub}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <GithubIcon className="mr-2 h-4 w-4" />
+                  Connect GitHub Account
+                </Button>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Repository Name</label>
               <Input
@@ -252,27 +310,19 @@ export const ProjectForm = () => {
                 onChange={(e) => setGithubRepoName(e.target.value)}
                 disabled={isSettingUpGitHub}
               />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">GitHub Token</label>
-              <Input
-                type="password"
-                placeholder="ghp_xxxxxxxxx"
-                value={githubToken}
-                onChange={(e) => setGithubToken(e.target.value)}
-                disabled={isSettingUpGitHub}
-              />
+              <p className="text-xs text-muted-foreground">
+                Letters, numbers, hyphens, and underscores only
+              </p>
             </div>
           </div>
 
           <DialogFooter>
             <Button
               onClick={setupGitHub}
-              disabled={!githubRepoName || !githubToken || isSettingUpGitHub}
+              disabled={!githubRepoName || isSettingUpGitHub}
               className="w-full"
             >
-              {isSettingUpGitHub ? "Setting up..." : "Connect GitHub"}
+              {isSettingUpGitHub ? "Creating Repository..." : "Create GitHub Repository"}
             </Button>
           </DialogFooter>
         </DialogContent>
