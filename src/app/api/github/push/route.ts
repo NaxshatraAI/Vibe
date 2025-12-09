@@ -228,6 +228,14 @@ export async function POST(req: Request) {
           message: commitMessage,
           tree: treeData.sha,
           parents: [latestCommitSha],
+          author: {
+            name: "Trikon",
+            email: "bot@trikon.dev",
+          },
+          committer: {
+            name: "Trikon",
+            email: "bot@trikon.dev",
+          },
         }),
       }
     );
