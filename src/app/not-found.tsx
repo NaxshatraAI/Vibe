@@ -1,12 +1,11 @@
-export default function NotFound() {
+const NotFound = () => {
   return (
-    <html>
-      <body>
-        <main style={{ padding: 40, fontFamily: 'Inter, sans-serif' }}>
-          <h1 style={{ fontSize: 28, marginBottom: 12 }}>404</h1>
-          <p>This page could not be found.</p>
-        </main>
-      </body>
-    </html>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-background px-6 text-foreground">
+      <p className="text-sm font-medium text-muted-foreground">404</p>
+      <h1 className="text-2xl font-semibold">This page could not be found.</h1>
+      <p className="text-muted-foreground">Double-check the URL or return home.</p>
+    </div>
   );
-}
+};
+
+export default NotFound;
