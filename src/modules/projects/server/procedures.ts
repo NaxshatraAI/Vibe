@@ -1,4 +1,3 @@
-import { inngest } from "@/inngest/client";
 import { prisma } from "@/lib/db";
 import { protectedProcedure, createTRPCRouter } from "@/trpic/init";
 import { z } from "zod";

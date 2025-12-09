@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
  * Initiates GitHub OAuth flow
  * Redirects user to GitHub authorization page
  */
-export async function GET(req: Request) {
+export async function GET() {
   const session = await auth();
   const userId = (session as { userId?: string }).userId;
   

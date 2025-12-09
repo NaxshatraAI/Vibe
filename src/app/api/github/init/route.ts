@@ -159,7 +159,7 @@ export async function POST(req: Request) {
     // Consume credits only after GitHub is connected to avoid waste
     try {
       await consumeCredits();
-    } catch (error) {
+    } catch {
       return NextResponse.json({
         error: "Insufficient credits",
         detail: "Please upgrade or wait for credits to reset before starting the build.",
