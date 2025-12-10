@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 const SUPABASE_OAUTH_CLIENT_ID = process.env.SUPABASE_OAUTH_CLIENT_ID;
 const SUPABASE_OAUTH_CLIENT_SECRET = process.env.SUPABASE_OAUTH_CLIENT_SECRET;
+const SUPABASE_OAUTH_REDIRECT_URI = process.env.SUPABASE_OAUTH_REDIRECT_URI;
 const SUPABASE_OAUTH_TOKEN_URL = "https://api.supabase.com/v1/oauth/token";
 
 interface TokenResponse {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate required environment variables
-    if (!SUPABASE_OAUTH_CLIENT_ID || !SUPABASE_OAUTH_CLIENT_SECRET) {
+    if (!SUPABASE_OAUTH_CLIENT_ID || !SUPABASE_OAUTH_CLIENT_SECRET || !SUPABASE_OAUTH_REDIRECT_URI) {
       console.error("[Supabase OAuth] Missing required environment variables");
       return NextResponse.redirect(
         new URL(
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: SUPABASE_OAUTH_CLIENT_ID,
         client_secret: SUPABASE_OAUTH_CLIENT_SECRET,
+        redirect_uri: SUPABASE_OAUTH_REDIRECT_URI,
       }),
     });
 
