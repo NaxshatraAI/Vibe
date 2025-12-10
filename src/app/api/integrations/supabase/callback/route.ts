@@ -40,48 +40,46 @@ export async function GET(request: NextRequest) {
     // Handle OAuth errors from Supabase
     if (error) {
       console.error("[Supabase OAuth Error]", error, errorDescription);
-      return NextResponse.redirect(
-        new URL(
-          `/projects?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || "")}`,
-          request.url
-        )
+      const redirectUrl = new URL(
+        `/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || "")}`,
+        request.url
       );
+      return NextResponse.redirect(redirectUrl);
     }
 
     if (!code) {
       console.error("[Supabase OAuth] No authorization code received");
-      return NextResponse.redirect(
-        new URL(
-          "/projects?error=no_code&error_description=No authorization code received",
-          request.url
-        )
+      const redirectUrl = new URL(
+        "/?error=no_code&error_description=No authorization code received",
+        request.url
       );
+      return NextResponse.redirect(redirectUrl);
     }
 
     // Validate required environment variables
     if (!SUPABASE_OAUTH_CLIENT_ID || !SUPABASE_OAUTH_CLIENT_SECRET || !SUPABASE_OAUTH_REDIRECT_URI) {
       console.error("[Supabase OAuth] Missing required environment variables");
-      return NextResponse.redirect(
-        new URL(
-          "/projects?error=server_error&error_description=OAuth is not configured",
-          request.url
-        )
+      const redirectUrl = new URL(
+        "/?error=server_error&error_description=OAuth is not configured",
+        request.url
       );
+      return NextResponse.redirect(redirectUrl);
     }
 
     // Exchange the authorization code for tokens
     const tokenResponse = await fetch(SUPABASE_OAUTH_TOKEN_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
         client_id: SUPABASE_OAUTH_CLIENT_ID,
         client_secret: SUPABASE_OAUTH_CLIENT_SECRET,
         redirect_uri: SUPABASE_OAUTH_REDIRECT_URI,
-      }),
+      }).toString(),
     });
 
     if (!tokenResponse.ok) {
@@ -91,24 +89,22 @@ export async function GET(request: NextRequest) {
         tokenResponse.status,
         errorData
       );
-      return NextResponse.redirect(
-        new URL(
-          "/projects?error=token_exchange_failed&error_description=Failed to exchange code for tokens",
-          request.url
-        )
+      const redirectUrl = new URL(
+        "/?error=token_exchange_failed&error_description=Failed to exchange code for tokens",
+        request.url
       );
+      return NextResponse.redirect(redirectUrl);
     }
 
     const tokens: TokenResponse = await tokenResponse.json();
 
     if (!tokens.access_token) {
       console.error("[Supabase Token Response] No access token received");
-      return NextResponse.redirect(
-        new URL(
-          "/projects?error=no_access_token&error_description=No access token received",
-          request.url
-        )
+      const redirectUrl = new URL(
+        "/?error=no_access_token&error_description=No access token received",
+        request.url
       );
+      return NextResponse.redirect(redirectUrl);
     }
 
     // Calculate expiration time if provided
@@ -146,15 +142,14 @@ export async function GET(request: NextRequest) {
 
     // Redirect to projects/dashboard with success message
     return NextResponse.redirect(
-      new URL("/projects?integration=supabase&status=connected", request.url)
+      new URL("/?integration=supabase&status=connected", request.url)
     );
   } catch (error) {
     console.error("[Supabase Callback Error]", error);
-    return NextResponse.redirect(
-      new URL(
-        "/projects?error=internal_error&error_description=An internal error occurred",
-        request.url
-      )
+    const redirectUrl = new URL(
+      "/?error=internal_error&error_description=An internal error occurred",
+      request.url
     );
+    return NextResponse.redirect(redirectUrl);
   }
 }
