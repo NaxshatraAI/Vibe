@@ -54,7 +54,7 @@ export async function POST() {
   }
 }
 
-// Also support GET requests for initialization
+// Also support GET requests to check connection status
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -66,10 +66,33 @@ export async function GET() {
       );
     }
 
+    // Check if user has connected their Supabase account
+    const { prisma } = await import("@/lib/db");
+    const integration = await prisma.integration.findUnique({
+      where: {
+        userId_provider: {
+          userId,
+          provider: "SUPABASE",
+        },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+    });
+
+    const isConnected = !!integration;
+    const isExpired = integration?.expiresAt 
+      ? new Date() > integration.expiresAt 
+      : false;
+
     return NextResponse.json({
       success: true,
-      message: "Supabase integration ready",
-      status: "ready",
+      isConnected,
+      isExpired,
+      needsReconnect: isExpired,
+      connectedAt: integration?.createdAt,
     });
   } catch (error) {
     console.error("[Supabase Integration Error]", error);

@@ -25,36 +25,70 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectingProjectId, setSelectingProjectId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(true);
 
-  // Fetch projects on component mount
+  // Check connection status first
   useEffect(() => {
-    const fetchProjects = async () => {
+    const checkConnection = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch('/api/integrations/supabase/projects');
-
+        setCheckingConnection(true);
+        const response = await fetch('/api/integrations/supabase');
+        
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(
-            data.error || `Failed to fetch projects (${response.status})`
-          );
+          throw new Error('Failed to check connection status');
         }
 
         const data = await response.json();
-        setProjects(data.projects || []);
+        setIsConnected(data.isConnected);
+
+        // If connected, fetch projects
+        if (data.isConnected && !data.needsReconnect) {
+          await fetchProjects();
+        } else if (data.needsReconnect) {
+          setError('Your Supabase connection has expired. Please reconnect.');
+        }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to fetch projects';
-        setError(message);
-        toast.error(message);
+        console.error('Connection check error:', err);
+        setIsConnected(false);
       } finally {
+        setCheckingConnection(false);
         setLoading(false);
       }
     };
 
-    fetchProjects();
+    checkConnection();
   }, []);
+
+  // Fetch projects function
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/integrations/supabase/projects');
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (data.requiresReconnect) {
+          setIsConnected(false);
+          throw new Error('Please reconnect your Supabase account');
+        }
+        throw new Error(
+          data.error || `Failed to fetch projects (${response.status})`
+        );
+      }
+
+      const data = await response.json();
+      setProjects(data.projects || []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch projects';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleConnectSupabase = async () => {
     try {
@@ -123,7 +157,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   };
 
   // Loading state
-  if (loading) {
+  if (loading || checkingConnection) {
     return (
       <Card>
         <CardHeader>
@@ -131,11 +165,72 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
             <Database className="w-5 h-5" />
             Supabase Projects
           </CardTitle>
-          <CardDescription>Loading your projects...</CardDescription>
+          <CardDescription>
+            {checkingConnection ? 'Checking connection...' : 'Loading your projects...'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Not connected state - show connect button
+  if (!isConnected) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Connect Supabase
+          </CardTitle>
+          <CardDescription>
+            Connect your Supabase account to manage your projects
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              To use Supabase integration, you need to connect your Supabase account first.
+              This will allow you to:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+              <li>View and manage your Supabase projects</li>
+              <li>Create and query databases</li>
+              <li>Deploy your applications</li>
+            </ul>
+            
+            <Button
+              onClick={handleConnectSupabase}
+              disabled={connecting}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {connecting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Connecting to Supabase...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="w-5 h-5" />
+                  Connect Supabase Account
+                </>
+              )}
+            </Button>
+            
+            <p className="text-xs text-muted-foreground text-center">
+              You&apos;ll be redirected to Supabase to authorize this application
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -207,27 +302,6 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
         <CardDescription>
           {projects.length} project{projects.length !== 1 ? 's' : ''} found
         </CardDescription>
-        <div className="mt-2">
-          <Button
-            onClick={handleConnectSupabase}
-            disabled={connecting}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            {connecting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              <>
-                <ExternalLink className="w-4 h-4" />
-                Connect Supabase
-              </>
-            )}
-          </Button>
-        </div>
       </CardHeader>
       <CardContent>
         {error && (
