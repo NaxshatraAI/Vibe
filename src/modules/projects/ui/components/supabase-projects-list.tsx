@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Database, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, Database, Loader2, CheckCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
@@ -27,6 +27,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   const [connecting, setConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [checkingConnection, setCheckingConnection] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Check connection status first
   useEffect(() => {
@@ -293,71 +294,91 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
 
   // Projects list
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="w-5 h-5" />
-          Supabase Projects
-        </CardTitle>
-        <CardDescription>
-          {projects.length} project{projects.length !== 1 ? 's' : ''} found
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid gap-3">
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    {project.name}
-                    {selectedProjectId === project.id && (
-                      <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    )}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Region: <span className="font-medium">{project.region}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Created: {new Date(project.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <Button
-                  onClick={() => handleSelectProject(project.id)}
-                  disabled={selectingProjectId !== null}
-                  variant={selectedProjectId === project.id ? 'default' : 'outline'}
-                  size="sm"
-                  className="min-w-fit"
-                >
-                  {selectingProjectId === project.id ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Selecting...
-                    </>
-                  ) : selectedProjectId === project.id ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Selected
-                    </>
-                  ) : (
-                    'Select Project'
-                  )}
-                </Button>
-              </div>
-            </div>
-          ))}
+    <Card className="sticky top-4 z-10">
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Supabase Projects
+          </CardTitle>
+          <CardDescription>
+            {projects.length} project{projects.length !== 1 ? 's' : ''} found
+          </CardDescription>
         </div>
-      </CardContent>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-muted-foreground"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? (
+            <span className="flex items-center gap-1">
+              Show <ChevronDown className="w-4 h-4" />
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              Hide <ChevronUp className="w-4 h-4" />
+            </span>
+          )}
+        </Button>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-3 max-h-[480px] overflow-auto pr-1">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      {project.name}
+                      {selectedProjectId === project.id && (
+                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      )}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Region: <span className="font-medium">{project.region}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Created: {new Date(project.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => handleSelectProject(project.id)}
+                    disabled={selectingProjectId !== null}
+                    variant={selectedProjectId === project.id ? 'default' : 'outline'}
+                    size="sm"
+                    className="min-w-fit"
+                  >
+                    {selectingProjectId === project.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Selecting...
+                      </>
+                    ) : selectedProjectId === project.id ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Selected
+                      </>
+                    ) : (
+                      'Select Project'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 };

@@ -18,8 +18,15 @@ import {
   DownloadIcon,
   GithubIcon,
   FileSearchIcon,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import { FileExplorer } from "@/components/file-explorer";
 import { UserControl } from "@/components/user-control";
@@ -30,7 +37,7 @@ import { toast } from "sonner";
 import { useTRPC } from "@/trpic/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReviewTab } from "@/modules/reviews/ui/components/review-tab";
-import { SupabaseProjectsList } from "../components/supabase-projects-list";
+import { SupabaseConnector } from "../components/supabase-connector";
 
 interface Props {
   projectId: string;
@@ -45,6 +52,7 @@ export const ProjectView = ({ projectId }: Props) => {
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPushingToGitHub, setIsPushingToGitHub] = useState(false);
+  const [showSupabase, setShowSupabase] = useState(false);
 
   const trpc = useTRPC();
   const { data: project } = useSuspenseQuery(
@@ -130,12 +138,6 @@ export const ProjectView = ({ projectId }: Props) => {
             </Suspense>
           </ErrorBoundary>
 
-          <div className="p-3">
-            <Suspense fallback={<p className="text-white/50 p-2">Loading Supabase…</p>}>
-              <SupabaseProjectsList />
-            </Suspense>
-          </div>
-
           <ErrorBoundary fallback={<p>Messages error</p>}>
             <Suspense fallback={<p className="text-white/50 p-4">Loading messages...</p>}>
               <MessagesContainer
@@ -176,35 +178,41 @@ export const ProjectView = ({ projectId }: Props) => {
               </TabsList>
 
               <div className="ml-auto flex items-center gap-x-2">
-                {activeFragment?.files && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="bg-black/40 border-white/10 text-white hover:bg-black/70"
-                      onClick={handlePushToGitHub}
-                      disabled={isPushingToGitHub || !project.githubEnabled}
-                    >
-                      <GithubIcon className="w-4 h-4" />
-                      <span>
-                        {isPushingToGitHub ? "Pushing..." : "GitHub"}
-                      </span>
-                    </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-black/40 border-white/10 text-white hover:bg-black/70"
+                  onClick={handlePushToGitHub}
+                  disabled={isPushingToGitHub || !project.githubEnabled}
+                >
+                  <GithubIcon className="w-4 h-4" />
+                  <span>
+                    {isPushingToGitHub ? "Pushing..." : "GitHub"}
+                  </span>
+                </Button>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="bg-black/40 border-white/10 text-white hover:bg-black/70"
-                      onClick={handleDownload}
-                      disabled={isDownloading}
-                    >
-                      <DownloadIcon
-                        className={isDownloading ? "animate-spin" : ""}
-                      />
-                      {isDownloading ? "Downloading..." : "Download"}
-                    </Button>
-                  </>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-[#1e2b43] text-white border-white/10 hover:bg-[#223150]"
+                  onClick={() => setShowSupabase(true)}
+                >
+                  <Zap className="w-4 h-4 text-emerald-400" />
+                  <span>Supabase</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-black/40 border-white/10 text-white hover:bg-black/70"
+                  onClick={handleDownload}
+                  disabled={isDownloading || !activeFragment?.files}
+                >
+                  <DownloadIcon
+                    className={isDownloading ? "animate-spin" : ""}
+                  />
+                  {isDownloading ? "Downloading..." : "Download"}
+                </Button>
 
                 {!hasProAccess && (
                   <Button
@@ -241,6 +249,17 @@ export const ProjectView = ({ projectId }: Props) => {
               <ReviewTab projectId={projectId} />
             </TabsContent>
           </Tabs>
+
+          <Dialog open={showSupabase} onOpenChange={setShowSupabase}>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Connectors</DialogTitle>
+              </DialogHeader>
+              <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
+                <SupabaseConnector onClose={() => setShowSupabase(false)} />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
