@@ -40,6 +40,10 @@ model Integration {
   // Metadata specific to the provider (JSON)
   metadata  Json?
   
+  // Supabase specific fields
+  selectedProjectId   String?                   // Selected Supabase project ID
+  selectedProjectName String?                   // Selected Supabase project name
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

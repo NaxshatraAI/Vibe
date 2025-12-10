@@ -79,6 +79,8 @@ export async function GET() {
         id: true,
         createdAt: true,
         expiresAt: true,
+        selectedProjectId: true,
+        selectedProjectName: true,
       },
     });
 
@@ -93,6 +95,8 @@ export async function GET() {
       isExpired,
       needsReconnect: isExpired,
       connectedAt: integration?.createdAt,
+      selectedProjectId: integration?.selectedProjectId,
+      selectedProjectName: integration?.selectedProjectName,
     });
   } catch (error) {
     console.error("[Supabase Integration Error]", error);

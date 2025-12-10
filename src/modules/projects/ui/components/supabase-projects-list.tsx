@@ -14,6 +14,13 @@ interface SupabaseProject {
   created_at: string;
 }
 
+interface IntegrationData {
+  isConnected: boolean;
+  needsReconnect?: boolean;
+  selectedProjectId?: string | null;
+  selectedProjectName?: string | null;
+}
+
 interface SupabaseProjectsListProps {
   onProjectSelected?: (projectId: string) => void;
 }
@@ -23,11 +30,13 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
   const [selectingProjectId, setSelectingProjectId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [hasExistingSelection, setHasExistingSelection] = useState(false);
 
   // Check connection status first
   useEffect(() => {
@@ -40,8 +49,15 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
           throw new Error('Failed to check connection status');
         }
 
-        const data = await response.json();
+        const data: IntegrationData = await response.json();
         setIsConnected(data.isConnected);
+
+        // Check if user already has a selected project
+        if (data.selectedProjectId) {
+          setSelectedProjectId(data.selectedProjectId);
+          setSelectedProjectName(data.selectedProjectName || null);
+          setHasExistingSelection(true);
+        }
 
         // If connected, fetch projects
         if (data.isConnected && !data.needsReconnect) {
@@ -122,7 +138,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
     }
   };
 
-  const handleSelectProject = async (projectId: string) => {
+  const handleSelectProject = async (projectId: string, projectName: string) => {
     try {
       setSelectingProjectId(projectId);
       setError(null);
@@ -132,7 +148,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, projectName }),
       });
 
       if (!response.ok) {
@@ -143,6 +159,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
       }
 
       setSelectedProjectId(projectId);
+      setSelectedProjectName(projectName);
+      setHasExistingSelection(true);
       toast.success('Project selected successfully');
 
       if (onProjectSelected) {
@@ -302,7 +320,15 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
             Supabase Projects
           </CardTitle>
           <CardDescription>
-            {projects.length} project{projects.length !== 1 ? 's' : ''} found
+            {hasExistingSelection && selectedProjectName ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                Connected: {selectedProjectName}
+              </span>
+            ) : (
+              <span>
+                {projects.length} project{projects.length !== 1 ? 's' : ''} found
+              </span>
+            )}
           </CardDescription>
         </div>
         <Button
@@ -330,6 +356,15 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
             </Alert>
           )}
 
+          {hasExistingSelection && (
+            <Alert className="mb-4 border-emerald-600 bg-emerald-50 dark:bg-emerald-950">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <AlertDescription className="text-emerald-800 dark:text-emerald-200">
+                You have already selected a project. To change it, please disconnect and reconnect your Supabase account.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-3 max-h-[480px] overflow-auto pr-1">
             {projects.map((project) => (
               <div
@@ -353,8 +388,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
                   </div>
 
                   <Button
-                    onClick={() => handleSelectProject(project.id)}
-                    disabled={selectingProjectId !== null}
+                    onClick={() => handleSelectProject(project.id, project.name)}
+                    disabled={selectingProjectId !== null || hasExistingSelection}
                     variant={selectedProjectId === project.id ? 'default' : 'outline'}
                     size="sm"
                     className="min-w-fit"
@@ -369,6 +404,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Selected
                       </>
+                    ) : hasExistingSelection ? (
+                      'Locked'
                     ) : (
                       'Select Project'
                     )}

@@ -192,9 +192,7 @@ export const SupabaseCreateProject = ({ onCancel, onSuccess }: SupabaseCreatePro
           SECURITY OPTIONS
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-4 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Additional security options will be available here.
-          </p>
+          {/* Future security options will be added here */}
         </CollapsibleContent>
       </Collapsible>
 
@@ -205,9 +203,7 @@ export const SupabaseCreateProject = ({ onCancel, onSuccess }: SupabaseCreatePro
           ADVANCED CONFIGURATION
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-4 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Advanced configuration options will be available here.
-          </p>
+          {/* Future advanced configuration options will be added here */}
         </CollapsibleContent>
       </Collapsible>
 
