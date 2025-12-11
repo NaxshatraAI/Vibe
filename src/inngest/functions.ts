@@ -47,10 +47,10 @@ export const codeAgentFunction = inngest.createFunction(
 
     // Get workspace context including selected Supabase project
     const workspaceContext = await step.run("get-workspace-context", async () => {
-      const { projectId, userId } = await getSelectedSupabaseProject();
+      const { projectId, projectName } = await getSelectedSupabaseProject();
       return {
         supabaseProjectId: projectId,
-        userId,
+        supabaseProjectName: projectName,
       };
     });
 

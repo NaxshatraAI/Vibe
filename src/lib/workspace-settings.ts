@@ -1,14 +1,28 @@
-import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "./db";
 
 /**
- * Utility to get the selected Supabase project ID from workspace settings (cookies)
+ * Utility to get the selected Supabase project ID from the database
  * This is used by the AI system to route database queries to the correct project
  */
 export async function getSelectedSupabaseProjectId(): Promise<string | null> {
   try {
-    const cookieStore = await cookies();
-    const projectId = cookieStore.get("supabase_selected_project_id")?.value;
-    return projectId || null;
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return null;
+    }
+
+    const integration = await prisma.integration.findUnique({
+      where: {
+        userId_provider: {
+          userId,
+          provider: "SUPABASE",
+        },
+      },
+    });
+
+    return integration?.selectedProjectId || null;
   } catch (error) {
     console.error("[Workspace Settings] Failed to get selected Supabase project:", error);
     return null;
@@ -16,30 +30,43 @@ export async function getSelectedSupabaseProjectId(): Promise<string | null> {
 }
 
 /**
- * Utility to get the user ID associated with the selected Supabase project
+ * Utility to get the selected Supabase project name
  */
-export async function getSelectedSupabaseProjectUserId(): Promise<string | null> {
+export async function getSelectedSupabaseProjectName(): Promise<string | null> {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("supabase_selected_project_user_id")?.value;
-    return userId || null;
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return null;
+    }
+
+    const integration = await prisma.integration.findUnique({
+      where: {
+        userId_provider: {
+          userId,
+          provider: "SUPABASE",
+        },
+      },
+    });
+
+    return integration?.selectedProjectName || null;
   } catch (error) {
-    console.error("[Workspace Settings] Failed to get Supabase project user ID:", error);
+    console.error("[Workspace Settings] Failed to get Supabase project name:", error);
     return null;
   }
 }
 
 /**
- * Get both the project ID and user ID in one call
+ * Get both the project ID and name in one call
  */
 export async function getSelectedSupabaseProject(): Promise<{
   projectId: string | null;
-  userId: string | null;
+  projectName: string | null;
 }> {
-  const [projectId, userId] = await Promise.all([
+  const [projectId, projectName] = await Promise.all([
     getSelectedSupabaseProjectId(),
-    getSelectedSupabaseProjectUserId(),
+    getSelectedSupabaseProjectName(),
   ]);
 
-  return { projectId, userId };
+  return { projectId, projectName };
 }

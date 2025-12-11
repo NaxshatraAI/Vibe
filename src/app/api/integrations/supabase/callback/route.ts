@@ -113,6 +113,36 @@ export async function GET(request: NextRequest) {
       expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
     }
 
+    // Fetch user's organizations to get the organization ID
+    let organizationId: string | null = null;
+    try {
+      const orgResponse = await fetch("https://api.supabase.com/v1/organizations", {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (orgResponse.ok) {
+        const organizations: Array<{ id: string; name: string }> = await orgResponse.json();
+        
+        // Get the first organization (most common case)
+        if (organizations && organizations.length > 0) {
+          organizationId = organizations[0].id;
+          console.log(
+            `[Supabase Integration] Found organization: ${organizationId} for user ${userId}`
+          );
+        }
+      } else {
+        console.warn(
+          "[Supabase Integration] Failed to fetch organizations",
+          orgResponse.status
+        );
+      }
+    } catch (error) {
+      console.error("[Supabase Integration] Error fetching organizations:", error);
+    }
+
     // Save or update the integration in the database
     await prisma.integration.upsert({
       where: {
@@ -125,6 +155,7 @@ export async function GET(request: NextRequest) {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || null,
         expiresAt,
+        metadata: organizationId ? { organizationId } : undefined,
         updatedAt: new Date(),
       },
       create: {
@@ -133,6 +164,7 @@ export async function GET(request: NextRequest) {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || null,
         expiresAt,
+        metadata: organizationId ? { organizationId } : undefined,
       },
     });
 

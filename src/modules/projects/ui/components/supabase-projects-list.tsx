@@ -37,6 +37,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [hasExistingSelection, setHasExistingSelection] = useState(false);
+  const [deselectingProject, setDeselectingProject] = useState(false);
 
   // Check connection status first
   useEffect(() => {
@@ -172,6 +173,38 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
       toast.error(message);
     } finally {
       setSelectingProjectId(null);
+    }
+  };
+
+  const handleDeselectProject = async () => {
+    try {
+      setDeselectingProject(true);
+      setError(null);
+
+      const response = await fetch('/api/integrations/supabase/deselect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(
+          data.error || `Failed to deselect project (${response.status})`
+        );
+      }
+
+      setSelectedProjectId(null);
+      setSelectedProjectName(null);
+      setHasExistingSelection(false);
+      toast.success('Project deselected successfully');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to deselect project';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setDeselectingProject(false);
     }
   };
 
@@ -359,8 +392,24 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
           {hasExistingSelection && (
             <Alert className="mb-4 border-emerald-600 bg-emerald-50 dark:bg-emerald-950">
               <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                You have already selected a project. To change it, please disconnect and reconnect your Supabase account.
+              <AlertDescription className="text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+                <span>Project connected: <strong>{selectedProjectName}</strong></span>
+                <Button
+                  onClick={handleDeselectProject}
+                  disabled={deselectingProject}
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 h-7 px-2 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                >
+                  {deselectingProject ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Deselecting...
+                    </>
+                  ) : (
+                    'Deselect'
+                  )}
+                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -389,7 +438,7 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
 
                   <Button
                     onClick={() => handleSelectProject(project.id, project.name)}
-                    disabled={selectingProjectId !== null || hasExistingSelection}
+                    disabled={selectingProjectId !== null || deselectingProject}
                     variant={selectedProjectId === project.id ? 'default' : 'outline'}
                     size="sm"
                     className="min-w-fit"
@@ -404,8 +453,6 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Selected
                       </>
-                    ) : hasExistingSelection ? (
-                      'Locked'
                     ) : (
                       'Select Project'
                     )}
