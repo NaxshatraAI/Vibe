@@ -19,7 +19,8 @@ export interface FormattedQueryResult {
 }
 
 // Regex pattern to detect database query objects in AI output
-const DATABASE_QUERY_PATTERN = /\/api\/db\/query/;
+// Updated to match the new /api/integrations/supabase/query endpoint
+const DATABASE_QUERY_PATTERN = /\/api\/integrations\/supabase\/query/;
 
 // Extract fetch calls to /api/db/query from code
 export function extractDatabaseQueries(code: string): Array<{
@@ -110,7 +111,7 @@ export function extractDatabaseQueries(code: string): Array<{
 }
 
 /**
- * Execute database query via /api/db/query endpoint from the main app
+ * Execute database query via /api/integrations/supabase/query endpoint from the main app
  * This is called from the Inngest function to execute queries detected in AI output
  */
 export async function executeDatabaseQuery(
@@ -118,7 +119,7 @@ export async function executeDatabaseQuery(
   appUrl: string
 ): Promise<DatabaseQueryResult> {
   try {
-    const response = await fetch(`${appUrl}/api/db/query`, {
+    const response = await fetch(`${appUrl}/api/integrations/supabase/query`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { upsertSupabaseCredentialsForUser } from "@/lib/supabase-management";
 
 const SUPABASE_MANAGEMENT_API_URL = "https://api.supabase.com/v1";
 
@@ -143,6 +144,22 @@ export async function POST(request: NextRequest) {
     const project = await createResponse.json();
 
     console.log(`[Supabase] User ${userId} created project: ${project.id} (${name})`);
+
+    // Fetch and persist credentials + selection
+    try {
+      await upsertSupabaseCredentialsForUser({
+        userId,
+        projectRef: project.id,
+        projectName: project.name,
+        accessToken: integration.accessToken,
+      });
+    } catch (err) {
+      console.error("[Supabase] Failed to store project credentials", err);
+      return NextResponse.json(
+        { error: "Project created, but fetching credentials failed. Please retry selection." },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

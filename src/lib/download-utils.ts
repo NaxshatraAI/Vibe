@@ -4,6 +4,87 @@ export interface NextJSProjectTemplate {
   [path: string]: string;
 }
 
+/**
+ * Generate a Supabase client initialization utility
+ * This helper is injected into generated apps that need database access
+ */
+export function createSupabaseInitializationScript(): string {
+  return `'use client';
+
+import { useEffect, useState } from 'react';
+
+interface SupabaseCredentials {
+  apiUrl: string;
+  anonKey: string;
+  projectRef: string;
+}
+
+export function useSupabaseCredentials() {
+  const [credentials, setCredentials] = useState<SupabaseCredentials | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchCredentials() {
+      try {
+        const response = await fetch('/api/integrations/supabase/credentials');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch Supabase credentials');
+        }
+
+        const data: SupabaseCredentials = await response.json();
+        setCredentials(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCredentials();
+  }, []);
+
+  return { credentials, loading, error };
+}
+
+/**
+ * Execute a database query via the server proxy
+ */
+export async function queryDatabase(
+  operation: 'query' | 'insert' | 'update' | 'delete',
+  table: string,
+  options?: {
+    select?: string[];
+    data?: Record<string, unknown>;
+    filters?: Record<string, unknown>;
+    limit?: number;
+    offset?: number;
+  }
+) {
+  const body: Record<string, unknown> = {
+    operation,
+    table,
+    ...options,
+  };
+
+  const response = await fetch('/api/integrations/supabase/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Database query failed');
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+`;
+}
+
 // Complete Next.js project template structure
 export function createNextJSProjectTemplate(generatedFiles: Record<string, string>, projectName: string): NextJSProjectTemplate {
   const template: NextJSProjectTemplate = {
@@ -220,7 +301,39 @@ next-env.d.ts`,
 
 This is a [Next.js](https://nextjs.org/) project generated with Vibe.
 
-## Getting Started
+## 🗄️ Database Setup (Optional)
+
+If you connected a Supabase project in Vibe, your credentials are already configured in your environment.
+
+### Using the Database
+
+Import the utilities from \`src/lib/supabase-utils.ts\`:
+
+\`\`\`typescript
+import { queryDatabase } from '@/lib/supabase-utils';
+
+// Fetch data
+const users = await queryDatabase('query', 'users', { select: '*' });
+
+// Insert data
+const newUser = await queryDatabase('insert', 'users', {
+  data: { name: 'John', email: 'john@example.com' },
+  returning: 'id, name, email'
+});
+
+// Update data
+await queryDatabase('update', 'users', {
+  data: { name: 'Jane' },
+  filters: { id: 123 }
+});
+
+// Delete data
+await queryDatabase('delete', 'users', {
+  filters: { id: 123 }
+});
+\`\`\`
+
+## 🚀 Getting Started
 
 First, install dependencies:
 
@@ -241,7 +354,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 To learn more about Next.js, take a look at the following resources:
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.`,
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Supabase Documentation](https://supabase.com/docs)`,
 
     // Basic components/ui utilities
     'src/lib/utils.ts': `import { type ClassValue, clsx } from "clsx"
@@ -250,6 +364,83 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }`,
+
+    // Supabase utilities (if database is connected)
+    'src/lib/supabase-utils.ts': `// Supabase utilities for client-side operations
+// This file helps your app connect to Supabase database
+
+// Fetch credentials from your Vibe backend
+export async function useSupabaseCredentials() {
+  const response = await fetch('/api/integrations/supabase/credentials');
+  if (!response.ok) {
+    throw new Error('Failed to fetch Supabase credentials');
+  }
+  const data = await response.json();
+  return {
+    url: data.apiUrl,
+    anonKey: data.anonKey,
+    projectRef: data.projectRef,
+  };
+}
+
+// Execute a database query via the Vibe proxy
+export async function queryDatabase(
+  operation: 'query' | 'insert' | 'update' | 'delete',
+  table: string,
+  {
+    select,
+    filters,
+    data,
+    returning,
+  }: {
+    select?: string;
+    filters?: Record<string, any>;
+    data?: Record<string, any>;
+    returning?: string;
+  } = {}
+) {
+  const response = await fetch('/api/integrations/supabase/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      operation,
+      table,
+      select,
+      filters,
+      data,
+      returning,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(\`Database query failed: \${error.error || 'Unknown error'}\`);
+  }
+
+  return response.json();
+}
+
+// Example: Fetch all users from a table
+// const users = await queryDatabase('query', 'users', { select: '*' });
+
+// Example: Insert a new record
+// const newUser = await queryDatabase('insert', 'users', {
+//   data: { name: 'John', email: 'john@example.com' },
+//   returning: 'id, name, email'
+// });
+
+// Example: Update a record
+// await queryDatabase('update', 'users', {
+//   data: { name: 'Jane' },
+//   filters: { id: 123 }
+// });
+
+// Example: Delete a record
+// await queryDatabase('delete', 'users', {
+//   filters: { id: 123 }
+// });`,
 
     // Default globals.css
     'src/app/globals.css': `@tailwind base;
@@ -387,6 +578,11 @@ CLERK_SECRET_KEY=your_clerk_secret_key_here
 # 1. Create a new application at https://dashboard.clerk.com/
 # 2. Copy your publishable key and secret key
 # 3. Replace the values above
+
+# Supabase Database (Optional - will be auto-populated if connected)
+# These are provided by Vibe when you connect a Supabase project
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 `;
 
   // Add Clerk middleware
@@ -497,6 +693,83 @@ export default async function DashboardPage() {
   );
 }`;
 
+  // Add Supabase utilities (if using database)
+  baseTemplate['src/lib/supabase-utils.ts'] = `// Supabase utilities for client-side operations
+// This file helps your app connect to Supabase database
+
+// Fetch credentials from your Vibe backend
+export async function useSupabaseCredentials() {
+  const response = await fetch('/api/integrations/supabase/credentials');
+  if (!response.ok) {
+    throw new Error('Failed to fetch Supabase credentials');
+  }
+  const data = await response.json();
+  return {
+    url: data.apiUrl,
+    anonKey: data.anonKey,
+    projectRef: data.projectRef,
+  };
+}
+
+// Execute a database query via the Vibe proxy
+export async function queryDatabase(
+  operation: 'query' | 'insert' | 'update' | 'delete',
+  table: string,
+  {
+    select,
+    filters,
+    data,
+    returning,
+  }: {
+    select?: string;
+    filters?: Record<string, any>;
+    data?: Record<string, any>;
+    returning?: string;
+  } = {}
+) {
+  const response = await fetch('/api/integrations/supabase/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      operation,
+      table,
+      select,
+      filters,
+      data,
+      returning,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(\`Database query failed: \${error.error || 'Unknown error'}\`);
+  }
+
+  return response.json();
+}
+
+// Example: Fetch all users from a table
+// const users = await queryDatabase('query', 'users', { select: '*' });
+
+// Example: Insert a new record
+// const newUser = await queryDatabase('insert', 'users', {
+//   data: { name: 'John', email: 'john@example.com' },
+//   returning: 'id, name, email'
+// });
+
+// Example: Update a record
+// await queryDatabase('update', 'users', {
+//   data: { name: 'Jane' },
+//   filters: { id: 123 }
+// });
+
+// Example: Delete a record
+// await queryDatabase('delete', 'users', {
+//   filters: { id: 123 }
+// });`;
+
   // Add sign-in page
   baseTemplate['src/app/sign-in/[[...sign-in]]/page.tsx'] = `import { SignIn } from "@clerk/nextjs";
 
@@ -590,6 +863,43 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_actual_publishable_key
 CLERK_SECRET_KEY=your_actual_secret_key
 \`\`\`
 
+## �️ Database Setup (Optional)
+
+If you connected a Supabase project in Vibe, your credentials are already configured. The \`.env.local\` file will be auto-populated with:
+
+\`\`\`bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+\`\`\`
+
+### Using the Database
+
+Import the utilities from \`src/lib/supabase-utils.ts\`:
+
+\`\`\`typescript
+import { queryDatabase } from '@/lib/supabase-utils';
+
+// Fetch data
+const users = await queryDatabase('query', 'users', { select: '*' });
+
+// Insert data
+const newUser = await queryDatabase('insert', 'users', {
+  data: { name: 'John', email: 'john@example.com' },
+  returning: 'id, name, email'
+});
+
+// Update data
+await queryDatabase('update', 'users', {
+  data: { name: 'Jane' },
+  filters: { id: 123 }
+});
+
+// Delete data
+await queryDatabase('delete', 'users', {
+  filters: { id: 123 }
+});
+\`\`\`
+
 ## 🚀 Getting Started
 
 First, install dependencies:
@@ -612,6 +922,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - \`/dashboard\` - Protected route (requires authentication)
 - \`/sign-in\` - Clerk sign-in page
 - \`/sign-up\` - Clerk sign-up page
+- \`src/lib/supabase-utils.ts\` - Database utilities for querying
 
 ## 🔒 Authentication Features
 
@@ -623,11 +934,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - ✅ Password reset
 - ✅ Social logins (configurable in Clerk dashboard)
 
+## 🗄️ Database Features
+
+- ✅ Query existing tables
+- ✅ Insert new records
+- ✅ Update records
+- ✅ Delete records
+- ✅ Row-level security (RLS) enforced
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Clerk Documentation](https://clerk.com/docs)
-- [Clerk + Next.js Guide](https://clerk.com/docs/quickstarts/nextjs)`;
+- [Clerk + Next.js Guide](https://clerk.com/docs/quickstarts/nextjs)
+- [Supabase Documentation](https://supabase.com/docs)`;
 
   return baseTemplate;
 }

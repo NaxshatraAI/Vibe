@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Database, Loader2, CheckCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Database, Loader2, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
@@ -25,6 +25,14 @@ interface SupabaseProjectsListProps {
   onProjectSelected?: (projectId: string) => void;
 }
 
+interface ClientCredentials {
+  success: boolean;
+  projectRef: string;
+  projectName: string | null;
+  apiUrl: string;
+  anonKey: string;
+}
+
 export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsListProps) => {
   const [projects, setProjects] = useState<SupabaseProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +46,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
   const [collapsed, setCollapsed] = useState(false);
   const [hasExistingSelection, setHasExistingSelection] = useState(false);
   const [deselectingProject, setDeselectingProject] = useState(false);
+  const [credentials, setCredentials] = useState<ClientCredentials | null>(null);
+  const [showCredentials, setShowCredentials] = useState(false);
 
   // Check connection status first
   useEffect(() => {
@@ -58,6 +68,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
           setSelectedProjectId(data.selectedProjectId);
           setSelectedProjectName(data.selectedProjectName || null);
           setHasExistingSelection(true);
+          // Fetch client credentials after selection is confirmed
+          await fetchClientCredentials();
         }
 
         // If connected, fetch projects
@@ -77,6 +89,20 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
 
     checkConnection();
   }, []);
+
+  // Fetch client-safe credentials for generated app
+  const fetchClientCredentials = async () => {
+    try {
+      const response = await fetch('/api/integrations/supabase/credentials');
+
+      if (response.ok) {
+        const data: ClientCredentials = await response.json();
+        setCredentials(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch credentials:', err);
+    }
+  };
 
   // Fetch projects function
   const fetchProjects = async () => {
@@ -163,6 +189,9 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
       setSelectedProjectName(projectName);
       setHasExistingSelection(true);
       toast.success('Project selected successfully');
+      
+      // Fetch client credentials after selection
+      await fetchClientCredentials();
 
       if (onProjectSelected) {
         onProjectSelected(projectId);
@@ -198,6 +227,8 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
       setSelectedProjectId(null);
       setSelectedProjectName(null);
       setHasExistingSelection(false);
+      setCredentials(null);
+      setShowCredentials(false);
       toast.success('Project deselected successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to deselect project';
@@ -206,6 +237,11 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
     } finally {
       setDeselectingProject(false);
     }
+  };
+
+  const handleCopyEnv = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    toast.success(`Copied ${key} to clipboard`);
   };
 
   // Loading state
@@ -394,24 +430,76 @@ export const SupabaseProjectsList = ({ onProjectSelected }: SupabaseProjectsList
               <CheckCircle className="w-4 h-4 text-emerald-600" />
               <AlertDescription className="text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
                 <span>Project connected: <strong>{selectedProjectName}</strong></span>
-                <Button
-                  onClick={handleDeselectProject}
-                  disabled={deselectingProject}
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2 h-7 px-2 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800"
-                >
-                  {deselectingProject ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Deselecting...
-                    </>
-                  ) : (
-                    'Deselect'
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowCredentials(!showCredentials)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                  >
+                    {showCredentials ? 'Hide' : 'Show'} Env
+                  </Button>
+                  <Button
+                    onClick={handleDeselectProject}
+                    disabled={deselectingProject}
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 h-7 px-2 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                  >
+                    {deselectingProject ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Deselecting...
+                      </>
+                    ) : (
+                      'Deselect'
+                    )}
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
+          )}
+
+          {showCredentials && credentials && (
+            <Card className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+              <CardHeader>
+                <CardTitle className="text-base">Client Environment Variables</CardTitle>
+                <CardDescription>Copy these to your app config</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">SUPABASE_URL</label>
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded border border-blue-200 dark:border-blue-800">
+                    <code className="flex-1 text-sm break-all">{credentials.apiUrl}</code>
+                    <Button
+                      onClick={() => handleCopyEnv('SUPABASE_URL', credentials.apiUrl)}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">SUPABASE_ANON_KEY</label>
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded border border-blue-200 dark:border-blue-800">
+                    <code className="flex-1 text-sm break-all">{credentials.anonKey}</code>
+                    <Button
+                      onClick={() => handleCopyEnv('SUPABASE_ANON_KEY', credentials.anonKey)}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  These variables are safe to use in client-side code. Your service role key is securely stored server-side only.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           <div className="grid gap-3 max-h-[480px] overflow-auto pr-1">

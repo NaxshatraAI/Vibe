@@ -43,6 +43,11 @@ model Integration {
   // Supabase specific fields
   selectedProjectId   String?                   // Selected Supabase project ID
   selectedProjectName String?                   // Selected Supabase project name
+  supabaseProjectRef  String?                   // Supabase project ref (used for API calls)
+  supabaseApiUrl      String?                   // Supabase API URL for the project
+  supabaseAnonKey     String?                   // Client-safe anon key
+  supabaseServiceRole String?                   // Server-only service role key (keep secret)
+  supabaseDbUrl       String?                   // Postgres connection string (server-side only)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

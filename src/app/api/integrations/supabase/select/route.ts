@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { upsertSupabaseCredentialsForUser } from "@/lib/supabase-management";
 
 /**
  * POST /api/integrations/supabase/select
@@ -27,18 +28,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "projectId is required and must be a string" }, { status: 400 });
     }
 
-    // Update the integration record with selected project info
-    const integration = await prisma.integration.update({
+    // Ensure integration exists and we have an access token
+    const integration = await prisma.integration.findUnique({
       where: {
         userId_provider: {
           userId,
           provider: "SUPABASE",
         },
       },
-      data: {
-        selectedProjectId: projectId,
-        selectedProjectName: projectName || null,
-      },
+    });
+
+    if (!integration || !integration.accessToken) {
+      return NextResponse.json(
+        { error: "Supabase account not connected. Please reconnect." },
+        { status: 400 }
+      );
+    }
+
+    // Fetch keys/URLs and persist selection atomically
+    const updatedIntegration = await upsertSupabaseCredentialsForUser({
+      userId,
+      projectRef: projectId,
+      projectName,
+      accessToken: integration.accessToken,
     });
 
     // Set cookies for workspace settings
@@ -46,7 +58,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Project selected successfully",
       projectId,
-      projectName: integration.selectedProjectName,
+      projectName: updatedIntegration.selectedProjectName,
       userId,
       selectedAt: new Date().toISOString(),
     });
