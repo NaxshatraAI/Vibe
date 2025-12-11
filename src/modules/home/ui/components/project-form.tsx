@@ -109,6 +109,35 @@ export const ProjectForm = () => {
     window.location.href = "/api/github/auth";
   };
 
+  const startWorkflow = async () => {
+    if (!createdProjectId) {
+      toast.error("Project ID missing");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/projects/start-workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: createdProjectId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Failed to start workflow");
+        return;
+      }
+
+      setShowGitHubDialog(false);
+      router.push(`/projects/${createdProjectId}`);
+    } catch {
+      toast.error("Unexpected error starting workflow");
+    }
+  };
+
   const setupGitHub = async () => {
     if (!createdProjectId || !githubRepoName) {
       toast.error("Please provide a repository name");
@@ -269,27 +298,23 @@ export const ProjectForm = () => {
       </form>
 
       {/* ✅ GITHUB DIALOG */}
-      <Dialog open={showGitHubDialog} onOpenChange={() => {}}>
-        <DialogContent
-          className="sm:max-w-md"
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
+      <Dialog open={showGitHubDialog} onOpenChange={setShowGitHubDialog}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               <GithubIcon className="inline mr-2" />
-              Connect to GitHub (Required)
+              Connect to GitHub (Optional)
             </DialogTitle>
             <DialogDescription>
-              Set up a GitHub repository for your project. This is required to save and manage your code.
+              Set up a GitHub repository to push and manage your code. You can also continue without it.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {!isGitHubConnected && (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-3">
-                  You need to connect your GitHub account first
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-3">
+                  Connect your GitHub account to create a repository
                 </p>
                 <Button
                   onClick={connectGitHub}
@@ -302,28 +327,39 @@ export const ProjectForm = () => {
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Repository Name</label>
-              <Input
-                placeholder="my-awesome-project"
-                value={githubRepoName}
-                onChange={(e) => setGithubRepoName(e.target.value)}
-                disabled={isSettingUpGitHub}
-              />
-              <p className="text-xs text-muted-foreground">
-                Letters, numbers, hyphens, and underscores only
-              </p>
-            </div>
+            {isGitHubConnected && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Repository Name</label>
+                <Input
+                  placeholder="my-awesome-project"
+                  value={githubRepoName}
+                  onChange={(e) => setGithubRepoName(e.target.value)}
+                  disabled={isSettingUpGitHub}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Letters, numbers, hyphens, and underscores only
+                </p>
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button
-              onClick={setupGitHub}
-              disabled={!githubRepoName || isSettingUpGitHub}
-              className="w-full"
+              onClick={startWorkflow}
+              variant="outline"
+              className="flex-1"
             >
-              {isSettingUpGitHub ? "Creating Repository..." : "Create GitHub Repository"}
+              Skip for Now
             </Button>
+            {isGitHubConnected && (
+              <Button
+                onClick={setupGitHub}
+                disabled={!githubRepoName || isSettingUpGitHub}
+                className="flex-1"
+              >
+                {isSettingUpGitHub ? "Creating Repository..." : "Create Repository"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
