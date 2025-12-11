@@ -6,7 +6,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { MessagesContainer } from "../components/messages-container";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Fragment } from "@/generated/prisma";
 import { ProjectHeader } from "../components/project-header";
 import { FragmentWeb } from "../components/fragment-web";
@@ -26,7 +26,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { FileExplorer } from "@/components/file-explorer";
 import { UserControl } from "@/components/user-control";
@@ -46,6 +50,21 @@ interface Props {
 export const ProjectView = ({ projectId }: Props) => {
   const { has } = useAuth();
   const hasProAccess = has?.({ plan: "pro" });
+  const trpc = useTRPC();
+  const { data: project } = useSuspenseQuery(
+    trpc.projects.getOne.queryOptions({ id: projectId })
+  );
+
+  const defaultRepoName = useMemo(() => {
+    const fallback = project.name || "vibe-project";
+    return (
+      fallback
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "vibe-project"
+    );
+  }, [project.name]);
+
   const [activeFragment, setActiveFragment] = useState<Fragment | null>(null);
   const [tabState, setTabState] = useState<"preview" | "code" | "review">(
     "preview"
@@ -53,11 +72,53 @@ export const ProjectView = ({ projectId }: Props) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPushingToGitHub, setIsPushingToGitHub] = useState(false);
   const [showSupabase, setShowSupabase] = useState(false);
+  const [showGithubSetup, setShowGithubSetup] = useState(false);
+  const [githubRepoName, setGithubRepoName] = useState(defaultRepoName);
+  const [githubReady, setGithubReady] = useState(project.githubEnabled);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubStatusLoading, setGithubStatusLoading] = useState(false);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [isCreatingGithubRepo, setIsCreatingGithubRepo] = useState(false);
 
-  const trpc = useTRPC();
-  const { data: project } = useSuspenseQuery(
-    trpc.projects.getOne.queryOptions({ id: projectId })
-  );
+  useEffect(() => {
+    setGithubRepoName(defaultRepoName);
+  }, [defaultRepoName]);
+
+  useEffect(() => {
+    setGithubReady(project.githubEnabled);
+  }, [project.githubEnabled]);
+
+  useEffect(() => {
+    if (!showGithubSetup) return;
+    let cancelled = false;
+
+    const fetchStatus = async () => {
+      setGithubStatusLoading(true);
+      setGithubError(null);
+      try {
+        const res = await fetch("/api/github/status");
+        if (!res.ok) {
+          throw new Error("Failed to check GitHub status");
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        setGithubConnected(!!data.connected);
+      } catch (error) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : "Unable to check GitHub status";
+        setGithubError(message);
+      } finally {
+        if (!cancelled) setGithubStatusLoading(false);
+      }
+    };
+
+    void fetchStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showGithubSetup]);
 
   const handleDownload = async () => {
     if (!activeFragment?.files) {
@@ -82,7 +143,7 @@ export const ProjectView = ({ projectId }: Props) => {
   };
 
   const handlePushToGitHub = async () => {
-    if (!project.githubEnabled) {
+    if (!githubReady) {
       toast.error("GitHub not set up for this project. Please set it up first.");
       return;
     }
@@ -182,12 +243,16 @@ export const ProjectView = ({ projectId }: Props) => {
                   size="sm"
                   variant="outline"
                   className="bg-black/40 border-white/10 text-white hover:bg-black/70"
-                  onClick={handlePushToGitHub}
-                  disabled={isPushingToGitHub || !project.githubEnabled}
+                  onClick={githubReady ? handlePushToGitHub : () => setShowGithubSetup(true)}
+                  disabled={isPushingToGitHub}
                 >
                   <GithubIcon className="w-4 h-4" />
                   <span>
-                    {isPushingToGitHub ? "Pushing..." : "GitHub"}
+                    {githubReady
+                      ? isPushingToGitHub
+                        ? "Pushing..."
+                        : "GitHub"
+                      : "Connect GitHub"}
                   </span>
                 </Button>
 
@@ -258,6 +323,126 @@ export const ProjectView = ({ projectId }: Props) => {
               <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
                 <SupabaseConnector onClose={() => setShowSupabase(false)} />
               </Suspense>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showGithubSetup} onOpenChange={setShowGithubSetup}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Connect GitHub</DialogTitle>
+                <DialogDescription>
+                  Add a repository so you can push code updates directly from Vibe.
+                </DialogDescription>
+              </DialogHeader>
+
+              {githubError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{githubError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>GitHub Account</Label>
+                  <Button
+                    variant={githubConnected ? "outline" : "default"}
+                    className="w-full justify-between"
+                    onClick={async () => {
+                      if (githubConnected) return;
+                      setGithubStatusLoading(true);
+                      try {
+                        window.location.href = "/api/github/auth";
+                      } finally {
+                        setGithubStatusLoading(false);
+                      }
+                    }}
+                    disabled={githubStatusLoading}
+                  >
+                    <span className="flex items-center gap-2">
+                      <GithubIcon className="w-4 h-4" />
+                      {githubConnected ? "Account connected" : "Connect GitHub Account"}
+                    </span>
+                  </Button>
+                  {!githubConnected && (
+                    <p className="text-xs text-muted-foreground">
+                      You will be redirected to GitHub to authorize access.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="repoName">Repository name</Label>
+                  <Input
+                    id="repoName"
+                    value={githubRepoName}
+                    onChange={(e) =>
+                      setGithubRepoName(
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9-_]+/g, "-")
+                          .replace(/^-+|-+$/g, "")
+                      )
+                    }
+                    placeholder="my-awesome-repo"
+                    disabled={!githubConnected || isCreatingGithubRepo}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Letters, numbers, hyphens, and underscores only.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowGithubSetup(false)}
+                  disabled={isCreatingGithubRepo}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={async () => {
+                    if (!githubConnected) {
+                      setGithubError("Please connect your GitHub account first.");
+                      return;
+                    }
+                    if (!githubRepoName.trim()) {
+                      setGithubError("Please enter a repository name.");
+                      return;
+                    }
+                    setGithubError(null);
+                    setIsCreatingGithubRepo(true);
+                    try {
+                      const response = await fetch("/api/github/init", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ projectId, repoName: githubRepoName }),
+                      });
+
+                      const data = await response.json();
+                      if (!response.ok) {
+                        const message = data.detail || data.error || "Failed to create repository";
+                        throw new Error(message);
+                      }
+
+                      toast.success("GitHub connected. You can now push code.");
+                      setGithubReady(true);
+                      setShowGithubSetup(false);
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : "Failed to connect GitHub";
+                      setGithubError(message);
+                      toast.error(message);
+                    } finally {
+                      setIsCreatingGithubRepo(false);
+                    }
+                  }}
+                  disabled={isCreatingGithubRepo || !githubRepoName.trim()}
+                >
+                  {isCreatingGithubRepo ? "Connecting..." : "Create repo & enable"}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </ResizablePanel>
