@@ -27,13 +27,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
-  // If token not provided, try to fetch from Clerk private metadata
+  // Prefer the token we stored in our database during OAuth
   if (!githubToken) {
     try {
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const pm = user.privateMetadata as Record<string, unknown> | null | undefined;
-  const storedToken = pm && typeof pm.githubToken === "string" ? (pm.githubToken as string) : undefined;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { githubAccessToken: true },
+      });
+
+      if (user?.githubAccessToken) {
+        githubToken = user.githubAccessToken;
+      }
+    } catch (dbErr) {
+      console.warn("[GitHub Push] Failed to read token from database", dbErr);
+    }
+  }
+
+  // Backward compatibility: fall back to Clerk private metadata if present
+  if (!githubToken) {
+    try {
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      const pm = user.privateMetadata as Record<string, unknown> | null | undefined;
+      const storedToken = pm && typeof pm.githubToken === "string" ? (pm.githubToken as string) : undefined;
       if (storedToken) {
         githubToken = storedToken;
       }
