@@ -46,12 +46,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch keys/URLs and persist selection atomically
-    const updatedIntegration = await upsertSupabaseCredentialsForUser({
-      userId,
-      projectRef: projectId,
-      projectName,
-      accessToken: integration.accessToken,
-    });
+    let updatedIntegration;
+    try {
+      updatedIntegration = await upsertSupabaseCredentialsForUser({
+        userId,
+        projectRef: projectId,
+        projectName,
+        accessToken: integration.accessToken,
+      });
+    } catch (credError) {
+      console.error("[Supabase Select] Failed to fetch/update credentials:", credError);
+      throw credError;
+    }
 
     // Set cookies for workspace settings
     const response = NextResponse.json({
@@ -83,6 +89,10 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("[Supabase Select Project Error]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json(
+      { error: errorMessage, details: String(error) }, 
+      { status: 500 }
+    );
   }
 }

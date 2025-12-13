@@ -37,7 +37,8 @@ export async function POST() {
     authUrl.searchParams.set("client_id", SUPABASE_OAUTH_CLIENT_ID);
     authUrl.searchParams.set("redirect_uri", SUPABASE_OAUTH_REDIRECT_URI);
     authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("scope", "offline_access"); // Request refresh token
+    // Request necessary scopes: offline_access for refresh tokens
+    authUrl.searchParams.set("scope", "offline_access");
 
     return NextResponse.json({
       success: true,

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { consumeCredits } from "@/lib/usage";
+import { checkUserCredits, consumeCredits } from "@/lib/usage";
 import { inngest } from "@/inngest/client";
 
 /**
  * Start the code-agent workflow for a project without requiring GitHub
  * This allows users to generate code and then optionally push to GitHub later
+ * 
+ * Credit System: Each request costs 1 credit = 2000 tokens
  */
 export async function POST(req: Request) {
   const session = await auth();
@@ -42,6 +44,18 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Step 1: Check if user has sufficient credits
+    const creditStatus = await checkUserCredits();
+    
+    if (!creditStatus.hasCredits) {
+      return NextResponse.json({
+        error: "Insufficient credits",
+        detail: creditStatus.message,
+        remainingCredits: creditStatus.credits,
+        maxTokens: creditStatus.maxTokens,
+      }, { status: 429 });
+    }
+
     // Fetch the first user message (prompt) for this project
     const firstMessage = await prisma.message.findFirst({
       where: { projectId, role: "USER" },
@@ -56,17 +70,10 @@ export async function POST(req: Request) {
       }, { status: 500 });
     }
 
-    // Consume credits before starting the workflow
-    try {
-      await consumeCredits();
-    } catch {
-      return NextResponse.json({
-        error: "Insufficient credits",
-        detail: "Please upgrade or wait for credits to reset before starting the build.",
-      }, { status: 429 });
-    }
+    // Step 2: Consume credits before starting the workflow
+    const consumeResult = await consumeCredits();
 
-    // Kick off the background code-agent workflow
+    // Step 3: Kick off the background code-agent workflow
     await inngest.send({
       name: "code-agent/run",
       data: {
@@ -76,11 +83,17 @@ export async function POST(req: Request) {
     });
 
     console.log(`[Project Workflow] Started workflow for project: ${projectId}`);
+    console.log(`[Credit System] User ${userId} consumed 1 credit. Remaining: ${consumeResult.creditsRemaining}`);
 
     return NextResponse.json({
       success: true,
       workflowStarted: true,
       message: "Code generation workflow started successfully",
+      creditInfo: {
+        tokensUsed: consumeResult.tokensUsed,
+        creditsRemaining: consumeResult.creditsRemaining,
+        totalTokensUsed: consumeResult.totalTokensUsed,
+      },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";

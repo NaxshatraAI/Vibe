@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { checkUserCredits, consumeCredits } from '@/lib/usage';
 import OpenAI from 'openai';
 import { getProjectFilesForReview } from '@/modules/reviews/server/utils';
 
@@ -29,6 +30,10 @@ interface IssueData {
   cvssScore?: number;
 }
 
+/**
+ * Generate code review using AI
+ * Credit System: Each review costs 1 credit = 2000 tokens
+ */
 export async function POST(req: NextRequest) {
   let reviewId: string | null = null;
   
@@ -47,6 +52,18 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Step 1: Check if user has sufficient credits before processing
+    const creditStatus = await checkUserCredits();
+    
+    if (!creditStatus.hasCredits) {
+      return NextResponse.json({
+        error: "Insufficient credits",
+        detail: creditStatus.message,
+        remainingCredits: creditStatus.credits,
+        maxTokens: creditStatus.maxTokens,
+      }, { status: 429 });
     }
 
     const body = await req.json();
@@ -249,6 +266,9 @@ Provide comprehensive, actionable feedback. Return ONLY valid JSON, no markdown 
       });
     }
 
+    // Step 2: Consume credits after successful review generation
+    const consumeResult = await consumeCredits();
+
     // Fetch the complete review
     const completeReview = await prisma.review.findUnique({
       where: { id: review.id },
@@ -262,7 +282,14 @@ Provide comprehensive, actionable feedback. Return ONLY valid JSON, no markdown 
       },
     });
 
-    return NextResponse.json({ review: completeReview });
+    return NextResponse.json({ 
+      review: completeReview,
+      creditInfo: {
+        tokensUsed: consumeResult.tokensUsed,
+        creditsRemaining: consumeResult.creditsRemaining,
+        totalTokensUsed: consumeResult.totalTokensUsed,
+      },
+    });
   } catch (error) {
     console.error('Error generating review:', error);
     

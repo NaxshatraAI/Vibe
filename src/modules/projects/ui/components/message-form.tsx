@@ -80,7 +80,10 @@ export const MessageForm = ({ projectId }: Props) => {
   return (
     <Form {...form}>
       {showUsage && (
-        <Usage points={usage.remainingPoints} msBeforNext={usage.msBeforeNext} />
+        <Usage 
+          points={usage.credits} 
+          msBeforNext={usage.monthlyResetDate ? usage.monthlyResetDate.getTime() - Date.now() : 0} 
+        />
       )}
       <form
         onSubmit={form.handleSubmit(onSubmit)}

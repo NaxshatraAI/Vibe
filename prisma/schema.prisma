@@ -19,6 +19,18 @@ model User {
   githubId           String?   // GitHub user ID
   githubUsername     String?   // GitHub username
   githubConnectedAt  DateTime? // When user connected GitHub account
+  
+  // Credit and Token System
+  credits            Int       @default(5)      // Free users get 5 credits (2000 tokens per credit)
+  totalTokensUsed    Int       @default(0)      // Lifetime token usage tracking
+  monthlyTokensUsed  Int       @default(0)      // Monthly token usage tracking
+  monthlyResetDate   DateTime  @default(now())  // When monthly tokens reset
+  isSubscribed       Boolean   @default(false)  // Is user on a paid plan
+  subscriptionTier   String?   @default("free") // free, pro, enterprise
+  subscriptionEndsAt DateTime? // When subscription expires (null for lifetime)
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 enum IntegrationProvider {

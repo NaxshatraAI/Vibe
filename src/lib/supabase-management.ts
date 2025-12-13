@@ -42,6 +42,11 @@ export async function fetchSupabaseProjectCredentials(
 
   if (!keysResponse.ok) {
     const body = await keysResponse.text();
+    console.error(`[Supabase Management] Failed to fetch API keys for project ${projectRef}:`, {
+      status: keysResponse.status,
+      statusText: keysResponse.statusText,
+      body: body.substring(0, 500), // Log first 500 chars
+    });
     throw new Error(
       `Failed to fetch Supabase API keys (${keysResponse.status}): ${body}`
     );
