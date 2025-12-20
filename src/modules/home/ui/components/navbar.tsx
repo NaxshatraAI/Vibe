@@ -7,11 +7,11 @@ import { usePathname } from "next/navigation"
 import { SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { UserControl } from "@/components/user-control"
-import { useScroll } from "@/hooks/use-scroll"
+
 import { cn } from "@/lib/utils"
 
 export const Navbar = () => {
-  const isScrolled = useScroll()
+
   const pathname = usePathname()
 
   const links = [
