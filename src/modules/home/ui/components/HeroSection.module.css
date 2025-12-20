@@ -1,0 +1,76 @@
+.hero {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  color: #fff;
+
+  background:
+    linear-gradient(to bottom,
+      rgba(0, 0, 0, 0.12),
+      rgba(0, 0, 0, 0.32)),
+    url("/image-80.jpg") center / cover no-repeat;
+}
+
+/* subtle depth only */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top,
+      rgba(255, 255, 255, 0.08),
+      transparent 65%);
+  z-index: 1;
+}
+
+.overlay {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding-top: 90px;
+}
+
+.centerText {
+  text-align: center;
+  max-width: 1200px;
+  padding: 0 1.5rem;
+  margin-top: -10px;
+}
+
+/* TITLE */
+.heroTitle {
+  font-family: var(--font-aboreto);
+  font-size: clamp(2.2rem, 3.2vw, 3.1rem);
+  font-weight: 400;
+  letter-spacing: 0.075em;
+
+  margin-bottom: 0.9rem;
+
+  text-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(168, 85, 247, 0.3);
+}
+
+/* SUBTITLE */
+.heroSubtitle {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  opacity: 0.95;
+  margin-bottom: 2.4rem;
+
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* prompt alignment */
+.promptWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  transform: translateY(-30px);
+}

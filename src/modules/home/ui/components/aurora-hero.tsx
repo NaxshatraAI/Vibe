@@ -9,6 +9,7 @@ import {
   motion,
   animate,
 } from "framer-motion";
+import PromptInput from "./prompt-input";
 
 const COLORS_TOP = ["#14b8a6", "#8b5cf6", "#06b6d4", "#a855f7"];
 
@@ -37,18 +38,25 @@ export const AuroraHero = ({ children }: AuroraHeroProps) => {
       }}
       className="relative grid min-h-screen place-content-center overflow-hidden bg-[#030303] px-4 py-24 text-white"
     >
-      <div className="relative z-10 flex flex-col items-center">
-        {/* <span className="mb-1.5 inline-block rounded-full bg-white/[0.05] border border-white/[0.1] px-3 py-1.5 text-sm text-white/60">
-          AI-Powered Builder
-        </span> */}
-        <h1 className="mid-w-2xl bg-gradient-to-br from-white to-white/60 bg-clip-text text-center text-3xl font-bold leading-tight text-transparent sm:text-5xl sm:leading-tight md:text-7xl md:leading-tight">
-          Build Something with Trikon
+      {/* Overlay gradient for better text readability */}
+      <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col items-center w-full max-w-4xl mx-auto text-center">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/70 mb-6 drop-shadow-sm">
+          A PORTAL TO EVERYTHING YOU WANT TO BUILD.
         </h1>
-        {/* <p className="my-6 max-w-xl text-center text-base leading-relaxed md:text-lg md:leading-relaxed text-white/40">
-          Transform your ideas into reality with our AI-powered platform. 
-          Create stunning applications in minutes, not months.
-        </p> */}
-        {children}
+
+        <p className="text-lg md:text-xl text-white/60 mb-8 max-w-2xl mx-auto font-light tracking-wide">
+          Build production-ready websites
+        </p>
+
+        <div className="w-full relative z-20">
+          
+        </div>
+
+        <div className="mt-12">
+          {children}
+        </div>
       </div>
 
       <div className="absolute inset-0 z-0">

@@ -14,7 +14,6 @@ export const Navbar = () => {
   const isScrolled = useScroll()
   const pathname = usePathname()
 
-  // ✅ YOUR ORIGINAL LINKS (UNCHANGED)
   const links = [
     { name: "Home", path: "/" },
     { name: "Features", path: "/features" },
@@ -27,51 +26,52 @@ export const Navbar = () => {
       initial={{ opacity: 1, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-200 border-b border-transparent",
-        isScrolled && "bg-white/5 backdrop-blur-xl border-white/10"
-
-      )}
+      className="
+        fixed top-0 left-0 right-0 z-50
+        px-6 py-4
+        bg-transparent
+      "
     >
       <div className="max-w-7xl mx-auto flex items-center">
 
-        {/* LEFT (Logo) */}
+        {/* LEFT – LOGO */}
         <div className="flex items-center flex-1">
           <Link href="/" className="flex items-center gap-3">
-           <Image
-  src="/logo.png"
-  alt="Vibe Logo"
-  width={120}
-  height={36}
-  className="object-contain"
-/>
-
-           
+            <Image
+              src="/logo.png"
+              alt="Vibe Logo"
+              width={120}
+              height={36}
+              className="object-contain"
+            />
           </Link>
         </div>
 
-        {/* CENTER (Glassmorphic Menu) */}
+        {/* CENTER – GLASS NAV LINKS ONLY */}
         <div className="hidden md:flex items-center justify-center flex-1">
           <div
             className="
               flex items-center gap-10 px-10 py-3
-              bg-white/5 border border-white/10 backdrop-blur-xl
               rounded-2xl
-              shadow-[0_0_6px_rgba(0,255,255,0.25),0_0_10px_rgba(168,85,247,0.25)]
+              border border-white/20
+              backdrop-blur-xl
+              bg-white/10
+              shadow-[0_0_12px_rgba(168,85,247,0.25),0_0_18px_rgba(20,184,166,0.25)]
             "
           >
             {links.map(({ name, path }) => {
-              // treat root path specially, otherwise allow prefix matches
               const active =
-                path === "/" ? pathname === "/" : pathname?.startsWith(path);
+                path === "/" ? pathname === "/" : pathname?.startsWith(path)
 
               return (
                 <div key={path} className="relative">
                   <Link
                     href={path}
                     className={cn(
-                      "text-sm transition",
-                      active ? "text-blue-400" : "text-white/70 hover:text-white"
+                      "text-sm transition-colors duration-200",
+                      active
+                        ? "text-violet-400"
+                        : "text-white/70 hover:text-white"
                     )}
                   >
                     {name}
@@ -80,17 +80,25 @@ export const Navbar = () => {
                   {active && (
                     <motion.div
                       layoutId="underline"
-                      className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-6 h-1 bg-blue-400 rounded-full"
-                      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                      className="
+                        absolute left-1/2 -translate-x-1/2 -bottom-1
+                        w-6 h-1 rounded-full
+                        bg-gradient-to-r from-teal-400 to-violet-400
+                      "
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 30,
+                      }}
                     />
                   )}
                 </div>
-              );
+              )
             })}
           </div>
         </div>
 
-        {/* RIGHT (Auth Buttons / User Control) */}
+        {/* RIGHT – AUTH / USER */}
         <div className="flex items-center justify-end flex-1 gap-3">
           <SignedOut>
             <SignInButton>

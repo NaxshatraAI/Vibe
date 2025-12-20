@@ -1,13 +1,8 @@
-import { ProjectForm } from "@/modules/home/ui/components/project-form";
-import { ProjectsList } from "@/modules/home/ui/components/projects-list";
-import { AuroraHero } from "@/modules/home/ui/components/aurora-hero";
+import Hero from "@/modules/home/ui/components/Hero";
 
 const Page = () => {
   return (
-    <AuroraHero>
-      <ProjectForm />
-      <ProjectsList />
-    </AuroraHero>
+    <Hero />
   );
 };
 
